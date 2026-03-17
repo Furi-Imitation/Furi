@@ -1,0 +1,90 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "SSRPlayer.h"
+
+#include "InputAction.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
+#include "GameFramework/CharacterMovementComponent.h"
+
+ASSRPlayer::ASSRPlayer()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+
+	//ConstructorHelpers::FObjectFinder<UInputAction> TempMoveInput(TEXT());
+}
+
+void ASSRPlayer::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void ASSRPlayer::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	
+	//이동 관련
+	// FVector P0 = GetActorLocation();
+	// FVector vt = Direction * MovementSpeed * DeltaTime;
+	// SetActorLocation(P0 + vt);
+	//
+	// Direction = FVector::Zero();
+}
+
+void ASSRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	
+	// 플레이어 컨트롤러를 Cast 해서 pc로 초기화
+	auto pc = Cast<APlayerController>(Controller);
+	if (pc)
+	{
+		// 서브시스템->로컬플레이어->EnhancedInputLocalPlayerSubsystem
+		auto subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(pc->GetLocalPlayer());
+		if (subsystem)
+		{
+			subsystem->AddMappingContext(IMC_SSR, 0);
+		}
+		
+		auto PlayerInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+		
+		if (PlayerInput)
+		{
+			PlayerInput->BindAction(IA_SSRMove,ETriggerEvent::Triggered, this, &ASSRPlayer::Move);
+		}
+	}
+}
+
+void ASSRPlayer::Move(const FInputActionValue& InputActionValue)
+{
+	FVector2D value = InputActionValue.Get<FVector2D>();
+	
+	// 입력 받은 값을 방향으로
+	FVector TargetDir = FVector(value.X, value.Y, 0.f);
+
+	if (!TargetDir.IsNearlyZero()) // 아무 키도 안눌렀을때 방지
+	{
+		TargetDir.Normalize();
+
+		// 방향을 회전값으로 변환
+		FRotator TargetRot = TargetDir.Rotation();
+		SetActorRotation(TargetRot);
+
+		AddMovementInput(GetActorForwardVector(), 1.0f);
+	}
+	
+	// FRotator ControlRot = Controller->GetControlRotation();
+	// FRotator YawRot(0.f, ControlRot.Yaw, 0.f);
+	//
+	// FVector Forward = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
+	// FVector Right = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
+	//
+	// AddMovementInput(GetActorForwardVector(), value.X);
+	// AddMovementInput(GetActorRightVector(), value.Y);
+}
+
