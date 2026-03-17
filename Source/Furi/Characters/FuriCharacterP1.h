@@ -1,0 +1,70 @@
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "FuriCharacterP1.generated.h"
+
+class USpringArmComponent;
+class UCameraComponent;
+class UInputAction;
+class UInputMappingContext;
+struct FInputActionValue;
+UCLASS()
+class FURI_API AFuriCharacterP1 : public AGasCharacterBase
+{
+	GENERATED_BODY()
+
+	/** Camera boom positioning the camera behind the character */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	USpringArmComponent* CameraBoom;
+
+	/** Follow camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* FollowCamera;
+	
+public:
+	// Sets default values for this character's properties
+	AFuriCharacterP1();
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
+	TObjectPtr<UInputMappingContext> IMC_P1;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> MoveAction;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> LookAction;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> MouseLookAction;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> DashAction;
+	
+	void Move(const FInputActionValue& inputValue);
+	void Look(const FInputActionValue& inputValue);
+	void DoMove(float Right, float Forward);
+	void DoLook(float Yaw, float Pitch);
+	void Dash(const FInputActionValue& inputValue);
+	
+public:
+
+	/** Returns CameraBoom subobject **/
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+
+	/** Returns FollowCamera subobject **/
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+};
