@@ -6,6 +6,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "Camera/CameraComponent.h"
+#include "Furi/Weapons/WeaponDataAsset.h"
+#include "Furi/Weapons/WeaponManagerComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
@@ -63,6 +65,9 @@ AFuriCharacterP1::AFuriCharacterP1()
 	
 	//기본속도 800으로 설정
 	GetCharacterMovement()->MaxWalkSpeed = 800.f;
+	
+	//무기 매니저 컴포넌트 생성 및 등록
+	WeaponManager = CreateDefaultSubobject<UWeaponManagerComponent>(TEXT("WeaponManager"));
 }
 
 // Called when the game starts or when spawned
@@ -70,6 +75,11 @@ void AFuriCharacterP1::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	// 게임 시작 시 기본 무기 장착
+	if (WeaponManager && DefaultWeaponData)
+	{
+		WeaponManager->EquipWeapon(DefaultWeaponData->WeaponConfig);
+	}
 }
 
 // Called every frame

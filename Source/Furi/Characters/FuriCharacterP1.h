@@ -6,6 +6,7 @@
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "FuriCharacterP1.generated.h"
 
+class UWeaponDataAsset;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
@@ -67,4 +68,19 @@ public:
 
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	
+protected:
+	//무기 관리 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	class UWeaponManagerComponent* WeaponManager;
+	
+	//시작 시 장착할 기본 무기
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	TObjectPtr<UWeaponDataAsset> DefaultWeaponData;
+	
+public:
+	
+	UWeaponManagerComponent* GetWeaponManager() const {return WeaponManager;}
+	
+	
 };

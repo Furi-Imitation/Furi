@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "FuriTypes.generated.h"
 
 // 데미지 타입: 속성 및 판정 구분
@@ -51,4 +52,42 @@ struct FFuriDamageInfo
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShouldForceInterrupt = false;  // 강제 인터럽트(시전 취소) 여부
+};
+
+// 개별 무기(한 자루)에 대한 설정
+USTRUCT(BlueprintType)
+struct FWeaponSlotConfig
+{
+	GENERATED_BODY()
+
+	// 사용할 스태틱 메쉬
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UStaticMesh> WeaponMesh;
+
+	// 캐릭터의 어느 소켓에 붙일 것인가?
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName AttachSocketName;
+};
+
+// 쌍검 세트(한 세트)에 대한 전체 설정
+USTRUCT(BlueprintType)
+struct FWeaponConfig
+{
+	GENERATED_BODY()
+
+	// 무기 식별 태그 (예: Weapon.DualKatana)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag WeaponTag;
+
+	// 무기 슬롯
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FWeaponSlotConfig> WeaponSlots;
+
+	// 이 무기 세트를 들었을 때 적용할 애니메이션 레이어 (ABP)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UAnimInstance> AnimLayerClass;
+
+	// 이 무기를 들었을 때의 이동 속도
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxWalkSpeed = 800.f;
 };
