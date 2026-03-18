@@ -54,7 +54,7 @@ struct FFuriDamageInfo
 	bool bShouldForceInterrupt = false;  // 강제 인터럽트(시전 취소) 여부
 };
 
-// 개별 무기(한 자루)에 대한 설정
+// 개별 무기에 대한 설정
 USTRUCT(BlueprintType)
 struct FWeaponSlotConfig
 {
@@ -69,7 +69,7 @@ struct FWeaponSlotConfig
 	FName AttachSocketName;
 };
 
-// 쌍검 세트(한 세트)에 대한 전체 설정
+//무기변경에 대한 전체 설정
 USTRUCT(BlueprintType)
 struct FWeaponConfig
 {
@@ -90,4 +90,17 @@ struct FWeaponConfig
 	// 이 무기를 들었을 때의 이동 속도
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxWalkSpeed = 800.f;
+};
+
+//먼저 "어떤 입력 태그"가 "어떤 Gameplay Tag"와 매핑되는지 정의
+USTRUCT(BlueprintType)
+struct FFuriInputActionConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<class UInputAction> InputAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTag InputTag; // 예: InputTag.Ability.Dash
 };

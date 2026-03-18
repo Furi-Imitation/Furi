@@ -57,11 +57,6 @@ AFuriCharacterP1::AFuriCharacterP1()
 	{
 		MouseLookAction = TempMouseLookAction.Object;
 	}
-	ConstructorHelpers::FObjectFinder<UInputAction> TempDashAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1Dash.IA_P1Dash'"));
-	if (TempDashAction.Succeeded())
-	{
-		DashAction = TempDashAction.Object;
-	}
 	
 	//기본속도 800으로 설정
 	GetCharacterMovement()->MaxWalkSpeed = 800.f;
@@ -111,6 +106,15 @@ void AFuriCharacterP1::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 			// Looking
 			playerInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFuriCharacterP1::Look);
+			
+			for (const FFuriInputActionConfig& Config : AbilityInputConfigs)
+			{
+				if (Config.InputAction && Config.InputTag.IsValid())
+				{
+					// 키를 눌렀을 때 AbilityInputTagPressed 호출
+					playerInputComponent->BindAction(Config.InputAction, ETriggerEvent::Started, this, &AFuriCharacterP1::AbilityInputTagPressed, Config.InputTag);
+				}
+			}
 		}
 	}
 }
@@ -163,7 +167,48 @@ void AFuriCharacterP1::DoLook(float Yaw, float Pitch)
 	}
 }
 
-void AFuriCharacterP1::Dash(const FInputActionValue& inputValue)
+void AFuriCharacterP1::PossessedBy(AController* NewController)
 {
+	Super::PossessedBy(NewController);
+
+	// 1. GAS Actor Info 초기화
+	InitAbilityActorInfo();
+
+	// 2. 어빌리티 부여
+	if (AbilitySystemComponent)
+	{
+		for (TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
+		{
+			if (AbilityClass)
+			{
+				// 어빌리티 스펙을 생성하여 부여
+				AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass));
+			}
+		}
+	}
 }
 
+void AFuriCharacterP1::InitAbilityActorInfo()
+{
+	// ASC에 이 캐릭터가 Owner이자 Avatar임을 알립니다.
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	}
+}
+
+void AFuriCharacterP1::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
+	
+	// 해당 태그를 가진 모든 어빌리티를 찾아 실행 시도.
+	FGameplayTagContainer AbilityTagsToActivate;
+	AbilityTagsToActivate.AddTag(InputTag);
+
+	// 태그를 통해 어빌리티 활성화 시도
+	AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
+	// 실행 시도 결과 확인
+	bool bSuccess = AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
+	// 로그 추가: 성공 여부 출력
+	UE_LOG(LogTemp, Warning, TEXT("Activation Success: %s"), bSuccess ? TEXT("True") : TEXT("False"));
+}

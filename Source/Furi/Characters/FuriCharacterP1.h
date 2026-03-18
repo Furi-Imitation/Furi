@@ -6,6 +6,7 @@
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "FuriCharacterP1.generated.h"
 
+struct FFuriInputActionConfig;
 class UWeaponDataAsset;
 class USpringArmComponent;
 class UCameraComponent;
@@ -52,14 +53,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> MouseLookAction;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
-	TObjectPtr<UInputAction> DashAction;
-	
 	void Move(const FInputActionValue& inputValue);
 	void Look(const FInputActionValue& inputValue);
 	void DoMove(float Right, float Forward);
 	void DoLook(float Yaw, float Pitch);
-	void Dash(const FInputActionValue& inputValue);
 	
 public:
 
@@ -82,5 +79,22 @@ public:
 	
 	UWeaponManagerComponent* GetWeaponManager() const {return WeaponManager;}
 	
+protected:
+	virtual void PossessedBy(AController* NewController) override;
+	
+	// 부여할 어빌리티 목록 (여기에 GA_Dash를 넣을 겁니다)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
+	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
+
+	// 초기화 함수 (주로 PossessedBy에서 호출)
+	void InitAbilityActorInfo();
+	
+protected:
+	// 에디터에서 IA와 Tag를 매핑한 리스트를 담을 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	TArray<FFuriInputActionConfig> AbilityInputConfigs;
+
+	// 입력 처리 함수
+	void AbilityInputTagPressed(FGameplayTag InputTag);
 	
 };
