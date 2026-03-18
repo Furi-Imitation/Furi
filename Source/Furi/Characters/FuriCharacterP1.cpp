@@ -1,29 +1,68 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
+#include "FuriCharacterP1.h"
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "FuriCharacterP1.h"
-
+#include "InputMappingContext.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
 
 // Sets default values
 AFuriCharacterP1::AFuriCharacterP1()
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// 틱 설정
 	PrimaryActorTick.bCanEverTick = true;
-	// Create a camera boom (pulls in towards the player if there is a collision)
+	//P1 카메라 기본 세팅
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 400.0f;
 	CameraBoom->bUsePawnControlRotation = true;
 
-	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+	
+	//P1 메시 기본 세팅
+	GetMesh()->SetRelativeScale3D(FVector(0.21f));
+	GetMesh()->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -90.0f));
+	ConstructorHelpers::FObjectFinder<USkeletalMesh> TempMesh(TEXT("/Script/Engine.SkeletalMesh'/Game/P1/Characters/Meshs/ue4_inosuke.ue4_inosuke'"));
+	if (TempMesh.Succeeded())
+	{
+		GetMesh()->SetSkeletalMesh(TempMesh.Object);
+	}
+	
+	//Input 관련 세팅
+	ConstructorHelpers::FObjectFinder<UInputMappingContext> TempIMC(TEXT("/Script/EnhancedInput.InputMappingContext'/Game/P1/input/IMC_P1Default.IMC_P1Default'"));
+	if (TempIMC.Succeeded())
+	{
+		IMC_P1 = TempIMC.Object;
+	}
+	ConstructorHelpers::FObjectFinder<UInputAction> TempMoveAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1Move.IA_P1Move'"));
+	if (TempMoveAction.Succeeded())	{
+		MoveAction = TempMoveAction.Object;
+	}
+	ConstructorHelpers::FObjectFinder<UInputAction> TempLookAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1Look.IA_P1Look'"));
+	if (TempLookAction.Succeeded())
+	{
+		LookAction = TempLookAction.Object;
+	}
+	ConstructorHelpers::FObjectFinder<UInputAction> TempMouseLookAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1MouseLook.IA_P1MouseLook'"));
+	if (TempMouseLookAction.Succeeded())
+	{
+		MouseLookAction = TempMouseLookAction.Object;
+	}
+	ConstructorHelpers::FObjectFinder<UInputAction> TempDashAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1Dash.IA_P1Dash'"));
+	if (TempDashAction.Succeeded())
+	{
+		DashAction = TempDashAction.Object;
+	}
+	
+	//기본속도 800으로 설정
+	GetCharacterMovement()->MaxWalkSpeed = 800.f;
 }
 
 // Called when the game starts or when spawned
