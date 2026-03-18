@@ -32,6 +32,12 @@ public:
 	class UInputAction* IA_SSRMove;
 	
 	UPROPERTY(EditDefaultsOnly, Category = Input)
+	class UInputAction* IA_SSRSwordAttack;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Input)
+	class UInputAction* IA_SSRShieldBlock;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Input)
 	class UInputMappingContext* IMC_SSR;
 	
 	// 플레이어 움직임 처리
@@ -39,4 +45,18 @@ public:
 	
 	FVector Direction;
 	float MovementSpeed = 1000.f;
+	
+	// 칼과 방패
+	UPROPERTY(EditDefaultsOnly, Category = Weapon)
+	class USkeletalMeshComponent* SwordMeshComp;
+	
+	void SwordAttack(const FInputActionValue& InputValue);
+	
+	
+	UPROPERTY(EditDefaultsOnly, Category = Weapon)
+	class USkeletalMeshComponent* ShieldMeshComp;
+	
+	void SheildBlock(const FInputActionValue& InputValue);
+	
+	
 };

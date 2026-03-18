@@ -15,8 +15,28 @@ ASSRPlayer::ASSRPlayer()
 	
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
-
-	//ConstructorHelpers::FObjectFinder<UInputAction> TempMoveInput(TEXT());
+	
+	// 검 구현
+	SwordMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>("SwordMeshComp");
+	SwordMeshComp->SetupAttachment(GetMesh());
+	ConstructorHelpers::FObjectFinder<USkeletalMesh> TempSwordMesh(TEXT("/Script/Engine.StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
+	if (TempSwordMesh.Succeeded())
+	{
+		SwordMeshComp->SetSkeletalMesh(TempSwordMesh.Object);
+		SwordMeshComp->SetRelativeLocation(FVector(-0.000000,44.444444,55.555556));
+		SwordMeshComp->SetRelativeScale3D(FVector(0.027778,0.027778,0.277778));
+	}
+	
+	// 방패 구현
+	ShieldMeshComp=CreateDefaultSubobject<USkeletalMeshComponent>("ShieldMeshComp");
+	ShieldMeshComp->SetupAttachment(GetMesh());
+	ConstructorHelpers::FObjectFinder<USkeletalMesh> TempShieldMesh(TEXT("/Script/Engine.StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
+	if (TempShieldMesh.Succeeded())
+	{
+		ShieldMeshComp->SetSkeletalMesh(TempShieldMesh.Object);
+		ShieldMeshComp->SetRelativeLocation(FVector(44.444444,44.444444,55.555556));
+		ShieldMeshComp->SetRelativeScale3D(FVector(0.027778,0.277778,0.277778));
+	}
 }
 
 void ASSRPlayer::BeginPlay()
@@ -56,6 +76,8 @@ void ASSRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 		if (PlayerInput)
 		{
 			PlayerInput->BindAction(IA_SSRMove,ETriggerEvent::Triggered, this, &ASSRPlayer::Move);
+			PlayerInput->BindAction(IA_SSRSwordAttack,ETriggerEvent::Triggered, this, &ASSRPlayer::SwordAttack);
+			PlayerInput->BindAction(IA_SSRShieldBlock,ETriggerEvent::Triggered,this, &ASSRPlayer::SheildBlock);
 		}
 	}
 }
@@ -86,5 +108,15 @@ void ASSRPlayer::Move(const FInputActionValue& InputActionValue)
 	//
 	// AddMovementInput(GetActorForwardVector(), value.X);
 	// AddMovementInput(GetActorRightVector(), value.Y);
+}
+
+void ASSRPlayer::SwordAttack(const FInputActionValue& InputValue)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Sword"));
+}
+
+void ASSRPlayer::SheildBlock(const FInputActionValue& InputValue)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Shield"));
 }
 
