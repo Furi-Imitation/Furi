@@ -185,6 +185,21 @@ void AFuriCharacterP1::PossessedBy(AController* NewController)
 				AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass));
 			}
 		}
+		if (StaminaRegenEffectClass)
+		{
+			// 이펙트를 적용하기 위한 문맥(Context) 생성 (누가 누구에게 거는가)
+			FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
+			ContextHandle.AddInstigator(this, this);
+
+			// 이펙트 스펙(Spec) 생성
+			FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(StaminaRegenEffectClass, 1.0f, ContextHandle);
+            
+			if (SpecHandle.IsValid())
+			{
+				// 생성된 이펙트를 내 몸(Self)에 영구적으로 적용합니다.
+				AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			}
+		}
 	}
 }
 
