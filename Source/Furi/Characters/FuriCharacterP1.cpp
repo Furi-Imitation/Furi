@@ -121,6 +121,14 @@ void AFuriCharacterP1::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void AFuriCharacterP1::Move(const FInputActionValue& Value)
 {
+	// 🌟 1. 무조건 최상단! 이동 로직이 시작되기 전에 막아야 합니다.
+	if (AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking"))))
+	{
+		// 로그를 찍어서 진짜로 여기서 막히는지 확인해 봅시다.
+		UE_LOG(LogTemp, Warning, TEXT("Block Tag Detected! Movement Canceled."));
+		return; // 이 줄을 만나면 아래 코드는 무시되고 함수가 끝납니다.
+	}
+	
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
@@ -215,15 +223,14 @@ void AFuriCharacterP1::InitAbilityActorInfo()
 void AFuriCharacterP1::AbilityInputTagPressed(FGameplayTag InputTag)
 {
 	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
-	
-	// 해당 태그를 가진 모든 어빌리티를 찾아 실행 시도.
+    
+	// 🌟 [추가] 내 손가락이 정확히 어떤 태그를 보냈는지 로그로 찍어보기
+	UE_LOG(LogTemp, Warning, TEXT("Pressed Input Tag: %s"), *InputTag.ToString());
+
 	FGameplayTagContainer AbilityTagsToActivate;
 	AbilityTagsToActivate.AddTag(InputTag);
 
-	// 태그를 통해 어빌리티 활성화 시도
-	AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
-	// 실행 시도 결과 확인
 	bool bSuccess = AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
-	// 로그 추가: 성공 여부 출력
+    
 	UE_LOG(LogTemp, Warning, TEXT("Activation Success: %s"), bSuccess ? TEXT("True") : TEXT("False"));
 }

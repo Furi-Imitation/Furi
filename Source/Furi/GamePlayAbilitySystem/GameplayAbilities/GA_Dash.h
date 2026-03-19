@@ -29,9 +29,6 @@ protected:
 	// 대시 종료 태그
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
 	FGameplayTag DashEndCueTag;
-	// 대시 애니메이션 몽타주
-	UPROPERTY(EditAnywhere, Category = "Dash")
-	TObjectPtr<UAnimMontage> DashMontage;
 
 	UFUNCTION()
 	void OnDashFinished();

@@ -82,7 +82,7 @@ public:
 protected:
 	virtual void PossessedBy(AController* NewController) override;
 	
-	// 부여할 어빌리티 목록 (여기에 GA_Dash를 넣을 겁니다)
+	// 부여할 어빌리티 목록
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
 
