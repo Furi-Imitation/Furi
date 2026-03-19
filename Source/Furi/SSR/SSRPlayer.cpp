@@ -2,6 +2,7 @@
 
 
 #include "SSRPlayer.h"
+#include "SSRSword.h"
 
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
@@ -16,32 +17,25 @@ ASSRPlayer::ASSRPlayer()
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	
-	// 검 구현
-	SwordMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>("SwordMeshComp");
-	SwordMeshComp->SetupAttachment(GetMesh());
-	ConstructorHelpers::FObjectFinder<USkeletalMesh> TempSwordMesh(TEXT("/Script/Engine.StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
-	if (TempSwordMesh.Succeeded())
-	{
-		SwordMeshComp->SetSkeletalMesh(TempSwordMesh.Object);
-		SwordMeshComp->SetRelativeLocation(FVector(-0.000000,44.444444,55.555556));
-		SwordMeshComp->SetRelativeScale3D(FVector(0.027778,0.027778,0.277778));
-	}
-	
-	// 방패 구현
-	ShieldMeshComp=CreateDefaultSubobject<USkeletalMeshComponent>("ShieldMeshComp");
-	ShieldMeshComp->SetupAttachment(GetMesh());
-	ConstructorHelpers::FObjectFinder<USkeletalMesh> TempShieldMesh(TEXT("/Script/Engine.StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
-	if (TempShieldMesh.Succeeded())
-	{
-		ShieldMeshComp->SetSkeletalMesh(TempShieldMesh.Object);
-		ShieldMeshComp->SetRelativeLocation(FVector(44.444444,44.444444,55.555556));
-		ShieldMeshComp->SetRelativeScale3D(FVector(0.027778,0.277778,0.277778));
-	}
 }
 
 void ASSRPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	if (SwordClass)
+	{
+		CurrentWeapon = GetWorld()->SpawnActor<ASSRSword>(SwordClass);
+		
+		if (CurrentWeapon)
+		{
+			FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
+			CurrentWeapon->AttachToComponent(
+				GetMesh(),
+				AttachRules,TEXT("WeaponSocket")
+				);
+		}
+	}
 }
 
 void ASSRPlayer::Tick(float DeltaTime)

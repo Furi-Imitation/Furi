@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputActionValue.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "SSRSword.h"
 #include "SSRPlayer.generated.h"
 
 /**
@@ -51,6 +52,10 @@ public:
 	class USkeletalMeshComponent* SwordMeshComp;
 	
 	void SwordAttack(const FInputActionValue& InputValue);
+	
+	UPROPERTY(EditAnywhere, CateGory = Weapon)
+	TSubclassOf<class ASSRSword> SwordClass;
+	ASSRSword* CurrentWeapon;
 	
 	
 	UPROPERTY(EditDefaultsOnly, Category = Weapon)
