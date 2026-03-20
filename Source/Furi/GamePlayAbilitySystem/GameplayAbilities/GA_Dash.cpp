@@ -1,22 +1,25 @@
-﻿#include "GA_Dash.h"
+﻿// GA_Dash.cpp
 
+#include "GA_Dash.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
-#include "GameplayTask.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 UGA_Dash::UGA_Dash()
 {
-	// 대시 중에는 다른 이동 입력을 무시하거나 특정 상태임을 알리는 태그
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Action.Dash")));
+    // [설정] 이 능력이 실행 중일 때 캐릭터가 가질 태그 (예: 대시 중엔 점프 불가 등을 판단할 때 사용)
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Action.Dash")));
+    
+    // [네트워크] 로컬 예측(Local Predicted): 클라이언트가 서버 응답을 기다리지 않고 즉시 대시를 시작하여 조작감을 높입니다.
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dashing")));
+    
+    // [상태 태그] 능력이 활성화된 동안 캐릭터에게 부여되는 태그 (애니메이션 블루프린트 등에서 참조 가능)
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dashing")));
 }
 
 void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
+    // 1. [검증] 코스트(마나 등)와 쿨타임이 충족되었는지 확인하고 소모합니다.
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
@@ -28,13 +31,13 @@ void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character) { EndAbility(Handle, ActorInfo, ActivationInfo, true, false); return; }
 
-    // [연출] 대시 시작 시 메시 숨기기
+    // 2. [연출: 은신 효과] 대시 시작 시 본체와 자식 컴포넌트(무기 등)를 모두 숨깁니다.
     Character->GetMesh()->SetHiddenInGame(true);
     TArray<USceneComponent*> Children;
     Character->GetMesh()->GetChildrenComponents(true, Children);
     for (USceneComponent* Child : Children) { Child->SetHiddenInGame(true); }
 
-    // [Gameplay Cue] 시작 이펙트 터뜨리기
+    // 3. [Gameplay Cue] 사운드나 파티클 같은 '시각적 효과'를 실행합니다.
     if (DashStartCueTag.IsValid()) 
     {
         FGameplayCueParameters Params;
@@ -43,21 +46,24 @@ void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
         GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(DashStartCueTag, Params);
     }
     
-    // 루트 모션(이동) 태스크 생성
+    // 4. [이동 로직] 입력 방향이 있으면 그 방향으로, 없으면 앞방향으로 대시 방향을 결정합니다.
     FVector DashDir = Character->GetLastMovementInputVector().IsNearlyZero() ? Character->GetActorForwardVector() : Character->GetLastMovementInputVector();
+    
+    // 5. [Ability Task] 루트 모션을 사용하여 0.3초 동안 2500의 속도로 밀어내는 '태스크'를 생성합니다.
     UAbilityTask_ApplyRootMotionConstantForce* MoveTask = UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(
         this, TEXT("DashMove"), DashDir, 2500.f, 0.3f, false, nullptr, ERootMotionFinishVelocityMode::ClampVelocity, FVector::ZeroVector, 600.f, false);
 
-    // 이동 태스크가 성공적으로 만들어졌다면
     if (MoveTask) 
     {
-        // 0.3초 뒤 이동이 끝날 때 OnDashFinished 함수를 부르도록 확실하게 예약!
+        // 6. [이벤트 바인딩] 대시 이동이 끝나면 OnDashFinished 함수가 실행되도록 연결합니다.
         MoveTask->OnFinish.AddDynamic(this, &UGA_Dash::OnDashFinished);
+        
+        // 7. [활성화] 태스크를 실제로 가동시킵니다.
         MoveTask->ReadyForActivation();
     }
     else
     {
-        // 안전장치: 혹시라도 이동 태스크 생성에 실패했다면, 즉시 스킬을 끝내서 무한 대시 버그를 막습니다.
+        // 실패 시 즉시 종료하여 캐릭터가 굳는 버그 방지
         EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
     }
 }
@@ -65,20 +71,22 @@ void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
 void UGA_Dash::OnDashFinished() {
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (Character) {
-        // 메시 다시 보이기
+        // 8. [복구] 숨겼던 메시를 다시 보이게 합니다.
         Character->GetMesh()->SetHiddenInGame(false);
         TArray<USceneComponent*> Children;
         Character->GetMesh()->GetChildrenComponents(true, Children);
         for (USceneComponent* Child : Children) { Child->SetHiddenInGame(false); }
         
-        // [Gameplay Cue] 종료 사운드 및 이펙트 실행 (Tag: GameplayCue.P1.Dash.End)
+        // 9. [Gameplay Cue] 대시 도착 지점 이펙트 실행
         if (DashEndCueTag.IsValid())
         {
             FGameplayCueParameters Params;
-            Params.Location = Character->GetActorLocation(); // 현재 위치 (도착지)
+            Params.Location = Character->GetActorLocation();
             Params.Instigator = Character;
             GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(DashEndCueTag, Params);
         }
     }
+    
+    // 10. [능력 종료] 이 함수를 호출해야 'State.Dashing' 태그가 제거되고 다른 능력을 쓸 수 있습니다.
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
