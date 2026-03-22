@@ -176,13 +176,27 @@ void AFuriCharacterP1::AbilityInputTagPressed(FGameplayTag InputTag)
 {
 	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
     
-	// 정확히 어떤 태그를 보냈는지 로그로 찍어보기
-	UE_LOG(LogTemp, Warning, TEXT("Pressed Input Tag: %s"), *InputTag.ToString());
+	bool bIsAlreadyActive = false; // 켜져 있는지 체크
 
-	FGameplayTagContainer AbilityTagsToActivate;
-	AbilityTagsToActivate.AddTag(InputTag);
+	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(InputTag))
+		{
+			if (Spec.IsActive())
+			{
+				// 이미 켜져 있으면 콤보 신호만 줌
+				AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
+				bIsAlreadyActive = true;
+			}
+		}
+	}
 
-	bool bSuccess = AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
-    
-	UE_LOG(LogTemp, Warning, TEXT("Activation Success: %s"), bSuccess ? TEXT("True") : TEXT("False"));
+	// 켜져 있지 않을 때만 새로 실행함
+	if (!bIsAlreadyActive)
+	{
+		FGameplayTagContainer AbilityTagsToActivate;
+		AbilityTagsToActivate.AddTag(InputTag);
+		AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
+	}
 }

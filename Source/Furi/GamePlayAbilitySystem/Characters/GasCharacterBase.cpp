@@ -4,6 +4,7 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
+#include "Furi/utils/FuriTypes.h"
 
 AGasCharacterBase::AGasCharacterBase()
 {
@@ -86,4 +87,71 @@ void AGasCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 UAbilitySystemComponent* AGasCharacterBase::GetAbilitySystemComponent() const
 {
     return AbilitySystemComponent;
+}
+
+void AGasCharacterBase::HandleDamageResponse(EFuriDamageResponse Response, AActor* Attacker)
+{
+    // 캐릭터가 이미 죽었거나 하는 등의 예외 처리가 필요하다면 여기서 체크
+    if (BasicAttributeSet->GetHealth() <= 0.0f) return;
+
+    switch (Response)
+    {
+    case EFuriDamageResponse::HitReaction:
+        // 1. 일반 피격: 가볍게 움찔하는 애니메이션 재생
+        if (HitReactionMontage)
+        {
+            PlayAnimMontage(HitReactionMontage);
+        }
+        break;
+
+    case EFuriDamageResponse::Stagger:
+        // 2. 경직: 더 크게 비틀거리는 애니메이션 재생
+        if (StaggerMontage)
+        {
+            PlayAnimMontage(StaggerMontage);
+        }
+        break;
+
+    case EFuriDamageResponse::Stun:
+        // 3. 기절: (보통 애니메이션 재생보다는 GAS 태그 'State.Stunned'를 부여해서 
+        // 일정 시간 동안 입력을 막고, 애님 그래프에서 루프 애니메이션을 틉니다)
+        UE_LOG(LogTemp, Warning, TEXT("Character Stunned!"));
+        break;
+
+    case EFuriDamageResponse::KnockBack:
+        // 4. 넉백: 🌟 대전 게임의 하이라이트! 물리적인 힘을 가해 날려버립니다.
+        
+        if (KnockBackMontage)
+        {
+            PlayAnimMontage(KnockBackMontage); // 공중에 뜨는 애니메이션 재생
+        }
+
+        // 밀려날 방향(PushDirection) 계산
+        FVector PushDirection = FVector::ZeroVector;
+
+        if (Attacker)
+        {
+            // 공격자의 위치에서 내 위치를 바라보는 방향 벡터를 구합니다. (나를 밀어내는 방향)
+            PushDirection = GetActorLocation() - Attacker->GetActorLocation();
+            
+            // Z축(위아래) 영향력을 없애서 오직 수평 방향으로만 계산되게 합니다.
+            PushDirection.Z = 0.0f;
+            PushDirection.Normalize(); // 벡터의 길이를 1로 만들어 순수 '방향'만 남김
+        }
+        else
+        {
+            // 만약 공격자 정보가 없다면 (함정 등에 맞았을 때) 무조건 내 뒤쪽으로 날아감
+            PushDirection = -GetActorForwardVector();
+        }
+
+        // 최종 힘 계산: 수평 방향 벡터에 밀어내는 힘을 곱하고, 수직으로 띄우는 힘을 더합니다.
+        FVector FinalLaunchVelocity = (PushDirection * KnockBackPushForce) + FVector(0.f, 0.f, KnockBackUpForce);
+
+        // 🌟 [함수: LaunchCharacter] 언리얼 캐릭터 이동의 핵심 물리 함수
+        // 두 번째, 세 번째 인자인 XYOverride, ZOverride를 true로 주면
+        // 현재 캐릭터가 걷고 있든 뛰고 있든 기존 관성을 무시하고 새 힘으로 확 날려버립니다!
+        LaunchCharacter(FinalLaunchVelocity, true, true);
+        
+        break;
+    }
 }
