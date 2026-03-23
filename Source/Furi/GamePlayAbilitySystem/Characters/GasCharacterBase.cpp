@@ -89,69 +89,97 @@ UAbilitySystemComponent* AGasCharacterBase::GetAbilitySystemComponent() const
     return AbilitySystemComponent;
 }
 
-void AGasCharacterBase::HandleDamageResponse(EFuriDamageResponse Response, AActor* Attacker)
+void AGasCharacterBase::TakeFuriDamage(const FFuriDamageInfo& DamageInfo, const FGameplayEffectSpecHandle& DamageSpec, AActor* InstigatorActor)
 {
-    // 캐릭터가 이미 죽었거나 하는 등의 예외 처리가 필요하다면 여기서 체크
-    if (BasicAttributeSet->GetHealth() <= 0.0f) return;
+    if (!AbilitySystemComponent) return;
 
-    switch (Response)
+    // 🌟 이미 죽었다면 대미지나 리액션을 무시합니다. (BasicAttributeSet가 유효한지 확인)
+    if (BasicAttributeSet && BasicAttributeSet->GetHealth() <= 0.0f)
     {
-    case EFuriDamageResponse::HitReaction:
-        // 1. 일반 피격: 가볍게 움찔하는 애니메이션 재생
-        if (HitReactionMontage)
-        {
-            PlayAnimMontage(HitReactionMontage);
-        }
-        break;
+        return;
+    }
 
-    case EFuriDamageResponse::Stagger:
-        // 2. 경직: 더 크게 비틀거리는 애니메이션 재생
-        if (StaggerMontage)
-        {
-            PlayAnimMontage(StaggerMontage);
-        }
-        break;
+    // 🛡️ 1. 액션 판정 로직 (무적, 가드, 패링 검사)
+    // 무적 판정
+    bool bIsInvincible = AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible")));
+    if (bIsInvincible && !DamageInfo.bShouldDamageInvincible)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Damage Evaded or Invincible!"));
+        return; // 맞지 않음 (회피 성공)
+    }
 
-    case EFuriDamageResponse::Stun:
-        // 3. 기절: (보통 애니메이션 재생보다는 GAS 태그 'State.Stunned'를 부여해서 
-        // 일정 시간 동안 입력을 막고, 애님 그래프에서 루프 애니메이션을 틉니다)
-        UE_LOG(LogTemp, Warning, TEXT("Character Stunned!"));
-        break;
+    // 가드 판정
+    bool bIsBlocking = AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking")));
+    if (bIsBlocking && DamageInfo.bCanBeBlocked)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Attack Blocked!"));
+        // TODO: 가드 성공 애니메이션(GuardReaction) 재생 및 가드 전용 스태미나 차감 로직 추가 가능
+        return; // 가드 성공 시 일반 피격 로직 및 대미지 무시
+    }
 
-    case EFuriDamageResponse::KnockBack:
-        // 4. 넉백: 🌟 대전 게임의 하이라이트! 물리적인 힘을 가해 날려버립니다.
-        
-        if (KnockBackMontage)
-        {
-            PlayAnimMontage(KnockBackMontage); // 공중에 뜨는 애니메이션 재생
-        }
 
-        // 밀려날 방향(PushDirection) 계산
-        FVector PushDirection = FVector::ZeroVector;
+    // =========================================================
+    // 💥 2. 피격 확정: 애니메이션 및 리액션(넉백) 처리
+    // =========================================================
+    
+    switch (DamageInfo.DamageResponse)
+    {
+        case EFuriDamageResponse::HitReaction:
+            // 1. 일반 피격
+            if (HitReactionMontage)
+            {
+                PlayAnimMontage(HitReactionMontage);
+            }
+            break;
 
-        if (Attacker)
-        {
-            // 공격자의 위치에서 내 위치를 바라보는 방향 벡터를 구합니다. (나를 밀어내는 방향)
-            PushDirection = GetActorLocation() - Attacker->GetActorLocation();
-            
-            // Z축(위아래) 영향력을 없애서 오직 수평 방향으로만 계산되게 합니다.
-            PushDirection.Z = 0.0f;
-            PushDirection.Normalize(); // 벡터의 길이를 1로 만들어 순수 '방향'만 남김
-        }
-        else
-        {
-            // 만약 공격자 정보가 없다면 (함정 등에 맞았을 때) 무조건 내 뒤쪽으로 날아감
-            PushDirection = -GetActorForwardVector();
-        }
+        case EFuriDamageResponse::Stagger:
+            // 2. 경직
+            if (StaggerMontage)
+            {
+                PlayAnimMontage(StaggerMontage);
+            }
+            break;
 
-        // 최종 힘 계산: 수평 방향 벡터에 밀어내는 힘을 곱하고, 수직으로 띄우는 힘을 더합니다.
-        FVector FinalLaunchVelocity = (PushDirection * KnockBackPushForce) + FVector(0.f, 0.f, KnockBackUpForce);
+        case EFuriDamageResponse::Stun:
+            // 3. 기절
+            UE_LOG(LogTemp, Warning, TEXT("Character Stunned!"));
+            break;
 
-        // 🌟 [함수: LaunchCharacter] 언리얼 캐릭터 이동의 핵심 물리 함수
-        // 두 번째, 세 번째 인자인 XYOverride, ZOverride를 true로 주면
-        // 현재 캐릭터가 걷고 있든 뛰고 있든 기존 관성을 무시하고 새 힘으로 확 날려버립니다!
-        LaunchCharacter(FinalLaunchVelocity, true, true);
-        
-        break;
+        case EFuriDamageResponse::KnockBack:
+            // 4. 넉백: 애니메이션 및 물리적 날려버리기
+            if (KnockBackMontage)
+            {
+                PlayAnimMontage(KnockBackMontage);
+            }
+
+            // 밀려날 방향 계산
+            FVector PushDirection = FVector::ZeroVector;
+            if (InstigatorActor)
+            {
+                // 공격자의 위치에서 내 위치를 바라보는 수평 방향 벡터
+                PushDirection = GetActorLocation() - InstigatorActor->GetActorLocation();
+                PushDirection.Z = 0.0f; 
+                PushDirection.Normalize(); 
+            }
+            else
+            {
+                // 공격자가 없으면 내 뒤로 날아감
+                PushDirection = -GetActorForwardVector();
+            }
+
+            // 최종 힘 계산 (넉백 변수는 헤더에 선언되어 있다고 가정)
+            FVector FinalLaunchVelocity = (PushDirection * KnockBackPushForce) + FVector(0.f, 0.f, KnockBackUpForce);
+
+            // 물리적으로 캐릭터를 날려버림 (관성 무시 true)
+            LaunchCharacter(FinalLaunchVelocity, true, true);
+            break;
+    }
+
+
+    // 최종 대미지 적용 (GAS Gameplay Effect)
+    if (DamageSpec.IsValid())
+    {
+        AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
+        UE_LOG(LogTemp, Log, TEXT("Took Damage: %f"), DamageInfo.Amount);
     }
 }
