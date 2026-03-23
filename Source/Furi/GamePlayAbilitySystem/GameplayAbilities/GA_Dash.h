@@ -30,6 +30,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
 	FGameplayTag DashEndCueTag;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
+	FGameplayTag DashVisualCueTag;
+	
 	UFUNCTION()
 	void OnDashFinished();
+	
+protected:
+	// EndAbility 오버라이드 선언
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 };

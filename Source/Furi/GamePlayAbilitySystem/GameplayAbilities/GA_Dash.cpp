@@ -31,11 +31,10 @@ void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character) { EndAbility(Handle, ActorInfo, ActivationInfo, true, false); return; }
 
-    // 2. [연출: 은신 효과] 대시 시작 시 본체와 자식 컴포넌트(무기 등)를 모두 숨깁니다.
-    Character->GetMesh()->SetHiddenInGame(true);
-    TArray<USceneComponent*> Children;
-    Character->GetMesh()->GetChildrenComponents(true, Children);
-    for (USceneComponent* Child : Children) { Child->SetHiddenInGame(true); }
+    if (DashVisualCueTag.IsValid())
+    {
+        GetAbilitySystemComponentFromActorInfo()->AddGameplayCue(DashVisualCueTag);
+    }
 
     // 3. [Gameplay Cue] 사운드나 파티클 같은 '시각적 효과'를 실행합니다.
     if (DashStartCueTag.IsValid()) 
@@ -68,16 +67,12 @@ void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
     }
 }
 
-void UGA_Dash::OnDashFinished() {
+void UGA_Dash::OnDashFinished() 
+{
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-    if (Character) {
-        // 8. [복구] 숨겼던 메시를 다시 보이게 합니다.
-        Character->GetMesh()->SetHiddenInGame(false);
-        TArray<USceneComponent*> Children;
-        Character->GetMesh()->GetChildrenComponents(true, Children);
-        for (USceneComponent* Child : Children) { Child->SetHiddenInGame(false); }
-        
-        // 9. [Gameplay Cue] 대시 도착 지점 이펙트 실행
+    if (Character) 
+    {
+        // 🌟 [Gameplay Cue] 도착 이펙트는 정상적으로 도착했을 때만 터져야 하므로 여기에 남겨둡니다.
         if (DashEndCueTag.IsValid())
         {
             FGameplayCueParameters Params;
@@ -87,6 +82,17 @@ void UGA_Dash::OnDashFinished() {
         }
     }
     
-    // 10. [능력 종료] 이 함수를 호출해야 'State.Dashing' 태그가 제거되고 다른 능력을 쓸 수 있습니다.
+    // 어빌리티 정상 종료 호출 (이 함수가 호출되면 아래의 오버라이드된 EndAbility로 넘어갑니다)
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void UGA_Dash::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+    if (DashVisualCueTag.IsValid())
+    {
+        GetAbilitySystemComponentFromActorInfo()->RemoveGameplayCue(DashVisualCueTag);
+    }
+
+    // 부모 클래스의 EndAbility는 무조건 마지막에 호출해야 합니다.
+    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

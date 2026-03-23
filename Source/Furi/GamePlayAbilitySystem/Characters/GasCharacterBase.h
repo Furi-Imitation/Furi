@@ -67,5 +67,10 @@ protected:
 	float KnockBackPushForce = 1500.f; // 뒤로 밀어내는 힘 (수평)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Physics")
-	float KnockBackUpForce = 600.f;    // 위로 띄우는 힘 (수직)
+	float KnockBackUpForce = 600.f;  
+	
+public:
+	// 공격자로부터 대미지 정보와 GAS Effect 정보를 함께 전달받는 함수
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	virtual void TakeFuriDamage(const FFuriDamageInfo& DamageInfo, const FGameplayEffectSpecHandle& DamageSpec, AActor* InstigatorActor);// 위로 띄우는 힘 (수직)
 };

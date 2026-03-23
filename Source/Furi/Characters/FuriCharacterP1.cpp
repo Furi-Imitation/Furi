@@ -174,6 +174,8 @@ void AFuriCharacterP1::InitAbilityActorInfo()
 
 void AFuriCharacterP1::AbilityInputTagPressed(FGameplayTag InputTag)
 {
+	//InputTag 로그 추가
+	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed called with Tag: %s"), *InputTag.ToString());
 	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
     
 	bool bIsAlreadyActive = false; // 켜져 있는지 체크

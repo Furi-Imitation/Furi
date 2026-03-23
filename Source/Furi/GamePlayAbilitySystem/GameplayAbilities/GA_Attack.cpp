@@ -6,6 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
+#include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -185,7 +186,7 @@ void UGA_Attack::PerformHitCheck()
 
         MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Hit")), HitParams);
 
-        // 🌟 사운드 보정 - ActualComboIndex 사용
+        //사운드 재생
         FGameplayTag HitSFXTag = (ActualComboIndex == 3) ? 
             FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Attack.Large")) : 
             FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Attack.Small"));
@@ -193,23 +194,38 @@ void UGA_Attack::PerformHitCheck()
 
         MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.CameraShake.Hit")), HitParams);
 
-        // 대미지 적용 - ActualComboIndex 사용
-        UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(ClosestTarget);
-        if (TargetASC)
+        // --- 대미지 적용 리팩토링 ---
+        // 타겟이 우리가 만든 AGasCharacterBase인지 확인합니다.
+        AGasCharacterBase* TargetCharacter = Cast<AGasCharacterBase>(ClosestTarget);
+        if (TargetCharacter && MyASC)
         {
+            // 1. 공격의 성격을 정의하는 커스텀 정보 조립
+            FFuriDamageInfo DamageInfo;
+            DamageInfo.Amount = (ActualComboIndex == 3) ? -30.f : -10.f;
+            DamageInfo.DamageType = EFuriDamageType::Melee;
+            DamageInfo.DamageResponse = (ActualComboIndex == 3) ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
+            
+            // 핵심: 1~2타는 패링 가능, 3타 피니시는 강공격이라 패링 불가! 가드만 가능
+            DamageInfo.bCanBeParried = (ActualComboIndex < 3); 
+            DamageInfo.bCanBeBlocked = true;
+            DamageInfo.bShouldForceInterrupt = (ActualComboIndex == 3);
+
+            // 2. 피를 깎을 GE Spec 작성
             TSubclassOf<UGameplayEffect> DamageGE = ComboDamageMap.Contains(ActualComboIndex) ? ComboDamageMap[ActualComboIndex] : nullptr;
+            
             if (DamageGE)
             {
                 FGameplayEffectContextHandle Context = MyASC->MakeEffectContext();
                 FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageGE, 1.0f, Context);
+                
                 if (SpecHandle.IsValid())
                 {
-                    float BaseDamage = (ActualComboIndex == 3) ? -30.f : -10.f; 
-                    SpecHandle.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), BaseDamage);
-                    float ResponseValue = (ActualComboIndex == 3) ? (float)EFuriDamageResponse::KnockBack : (float)EFuriDamageResponse::HitReaction;
-                    SpecHandle.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage.Response")), ResponseValue);
+                    // GE 자체에는 순수하게 깎일 HP 수치만 담아줍니다.
+                    // (애니메이션 판정용 데이터는 더 이상 SetByCallerMagnitude로 안 넘겨도 됨)
+                    SpecHandle.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), DamageInfo.Amount);
 
-                    TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+                    // 3. 타겟에게 구조체(판정용)와 GE(피 차감용)를 함께 던져줍니다!
+                    TargetCharacter->TakeFuriDamage(DamageInfo, SpecHandle, MyAvatar);
                 }
             }
         }
