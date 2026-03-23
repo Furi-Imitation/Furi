@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "AbilitySystemGlobals.h"
 #include "Engine/OverlapResult.h"
+#include "DrawDebugHelpers.h"
 #include "Furi/GamePlayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "GameFramework/Actor.h"
 
@@ -24,6 +25,7 @@ void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
+	
 	// 이미 켜져있으면 끄기
 	if (bIsActive)
 	{
@@ -35,7 +37,14 @@ void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
 	}
+	
+	// 멀티플레이용
+	// if (!HasAuthority(&CurrentActivationInfo))
+	// {
+	// 	return;
+	// }
 	
 	bIsActive = true;
 	
@@ -56,14 +65,15 @@ void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 		GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(SunFireStartCueTag, Params);
 	}
 	
-	// 진행중 -> 반복 데미지
-	GetWorld()->GetTimerManager().SetTimer(
-		TickTimerHandle,
-		this,
-		&USSRSunFire::ApplySunFireDamage,
-		TickInterval,
-		true
-		);
+	ApplySunFireDamage();
+	// // 진행중 -> 반복 데미지
+	// GetWorld()->GetTimerManager().SetTimer(
+	// 	TickTimerHandle,
+	// 	this,
+	// 	&USSRSunFire::ApplySunFireDamage,
+	// 	TickInterval,
+	// 	true
+	// 	);
 }
 
 void USSRSunFire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -79,6 +89,7 @@ void USSRSunFire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 	}
 	
 	// 종료 Cue
+	bIsActive = false;
 	if (OwnerActor && SunFireEndCueTag.IsValid())
 	{
 		FGameplayCueParameters Params;
@@ -86,8 +97,6 @@ void USSRSunFire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 		Params.Instigator = OwnerActor;
 		
 		GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(SunFireEndCueTag, Params);
-		
-		bIsActive = false;
 	}
 	
 	// EndAbility가 끝나고 마지막에 호출하여 Ability 완전히 종료
@@ -140,6 +149,7 @@ void USSRSunFire::ApplySunFireDamage()
 // SunFire 공격 범위
 void USSRSunFire::GetActorInRange(TArray<AActor*>& OutActors)
 {
+	
 	AActor* OwnerActor = GetAvatarActorFromActorInfo();
 	if (!OwnerActor)
 		return;
@@ -152,7 +162,10 @@ void USSRSunFire::GetActorInRange(TArray<AActor*>& OutActors)
 	// 본인 무시
 	Params.AddIgnoredActor(OwnerActor);
 	
-	GetWorld()->OverlapMultiByChannel(
+	UWorld* World = GetWorld();
+	if (!World) return;
+	
+	World->OverlapMultiByChannel(
 		Overlaps,
 		Center,
 		FQuat::Identity, // 아무것도 회전하지 않은 기본값
@@ -160,7 +173,8 @@ void USSRSunFire::GetActorInRange(TArray<AActor*>& OutActors)
 		FCollisionShape::MakeSphere(Radius),
 		Params
 		);
-	
+	UE_LOG(LogTemp, Warning, TEXT("1235463215675372461"));
+	DrawDebugSphere(GetWorld(), OwnerActor->GetActorLocation(), Radius, 32, FColor::Red,false, 5.0f);
 	for (const FOverlapResult& Result : Overlaps)
 	{
 		if (AActor* HitActor = Result.GetActor())

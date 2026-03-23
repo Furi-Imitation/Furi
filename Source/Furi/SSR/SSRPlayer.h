@@ -86,4 +86,27 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Weapons)
 	TObjectPtr<class UWeaponDataAsset> DefaultWeaponData;
+	
+protected:
+	virtual void PossessedBy(AController* NewController) override;
+	
+	// 부여할 어빌리티 목록
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
+	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
+
+	// 초기화 함수 (주로 PossessedBy에서 호출)
+	void InitAbilityActorInfo();
+	
+protected:
+	// 에디터에서 IA와 Tag를 매핑한 리스트를 담을 변수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	TArray<FFuriInputActionConfig> AbilityInputConfigs;
+
+	// 입력 처리 함수
+	void AbilityInputTagPressed(FGameplayTag InputTag);
+	
+protected:
+	// 게임 시작 시 자동으로 걸어줄 스테미나 재생 이펙트
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities|Effects")
+	TSubclassOf<class UGameplayEffect> StaminaRegenEffectClass;
 };

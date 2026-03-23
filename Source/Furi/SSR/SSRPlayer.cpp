@@ -7,6 +7,7 @@
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
 #include "Furi/Weapons/WeaponDataAsset.h"
 #include "Furi/Weapons/WeaponManagerComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -78,11 +79,18 @@ void ASSRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 		if (PlayerInput)
 		{
 			PlayerInput->BindAction(IA_SSRMove,ETriggerEvent::Triggered, this, &ASSRPlayer::Move);
-			PlayerInput->BindAction(IA_SSRSwordAttack,ETriggerEvent::Started, this, &ASSRPlayer::SwordAttack);
-			PlayerInput->BindAction(IA_SSRShieldBlock,ETriggerEvent::Started,this, &ASSRPlayer::SheildBlock);
-			PlayerInput->BindAction(IA_SSRDash,ETriggerEvent::Started,this, &ASSRPlayer::Dash);
-			PlayerInput->BindAction(IA_SSRSunFire,ETriggerEvent::Started,this, &ASSRPlayer::SunFire);
-			
+			// PlayerInput->BindAction(IA_SSRSwordAttack,ETriggerEvent::Started, this, &ASSRPlayer::SwordAttack);
+			// PlayerInput->BindAction(IA_SSRShieldBlock,ETriggerEvent::Started,this, &ASSRPlayer::SheildBlock);
+			// PlayerInput->BindAction(IA_SSRDash,ETriggerEvent::Started,this, &ASSRPlayer::Dash);
+			// PlayerInput->BindAction(IA_SSRSunFire,ETriggerEvent::Started,this, &ASSRPlayer::SunFire);
+			for (const FFuriInputActionConfig& Config : AbilityInputConfigs)
+			{
+				if (Config.InputAction && Config.InputTag.IsValid())
+				{
+					// 키를 눌렀을 때 AbilityInputTagPressed 호출
+					PlayerInput->BindAction(Config.InputAction, ETriggerEvent::Started, this, &ASSRPlayer::AbilityInputTagPressed, Config.InputTag);
+				}
+			}
 		}
 	}
 }
@@ -142,4 +150,83 @@ void ASSRPlayer::SwordSkill2(const FInputActionValue& InputValue)
 
 void ASSRPlayer::SwordSkill3(const FInputActionValue& InputValue)
 {
+}
+
+void ASSRPlayer::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	
+	// 1. GAS Actor Info 초기화
+	InitAbilityActorInfo();
+	
+	// 2. 어빌리티 부여
+	if (AbilitySystemComponent)
+	{
+		for (TSubclassOf<UGameplayAbility>& AbilityClass : DefaultAbilities)
+		{
+			if (AbilityClass)
+			{
+				// 어빌리티 스펙을 생성하여 부여
+				AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass));
+			}
+		}
+		if (StaminaRegenEffectClass)
+		{
+			// 이펙트를 적용하기 위한 문맥(Context) 생성 -> 누가 누구에게 거는가
+			FGameplayEffectContextHandle ContextHandle = AbilitySystemComponent->MakeEffectContext();
+			ContextHandle.AddInstigator(this, this);
+			
+			// 이펙트 스펙(Spec) 생성
+			FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(StaminaRegenEffectClass, 1.0f, ContextHandle);
+			
+			if (SpecHandle.IsValid())
+			{
+				// 생성된 이펙트를 내 몸(Self)에 영구적으로 적용합니다.
+				AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			}
+		}
+	}
+}
+
+void ASSRPlayer::InitAbilityActorInfo()
+{
+	//ASC에 이 캐릭터가 Owner이자 Avater임을 밝힙니다
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this,this);
+	}
+}
+
+void ASSRPlayer::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed %s"), *InputTag.ToString());
+	
+	if (!AbilitySystemComponent || !InputTag.IsValid())
+		return;
+
+	bool bIsAlreadyActive = false;
+	
+	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(InputTag))
+		{
+			if (Spec.IsActive())
+			{
+				// 이미 켜져 있으면 콤보 신호만 줌
+				AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
+				bIsAlreadyActive = true;
+			}
+		}
+	}
+	
+	if (!bIsAlreadyActive)
+	{
+		FGameplayTagContainer AbilityTagsToActivate;
+		AbilityTagsToActivate.AddTag(InputTag);
+		AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed"));
+
+	}
+	
+	
 }
