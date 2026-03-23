@@ -31,12 +31,12 @@ void UWeaponManagerComponent::EquipWeapon(const FWeaponConfig& NewConfig)
 		UStaticMeshComponent* NewWeaponMesh = NewObject<UStaticMeshComponent>(OwnerCharacter);
 		NewWeaponMesh->SetStaticMesh(Slot.WeaponMesh);
         
+		NewWeaponMesh->SetRelativeScale3D(Slot.WeaponScale);
 		// 캐릭터의 메쉬에 부착하기 위해 등록
 		NewWeaponMesh->RegisterComponent();
 
 		// 부착 규칙: 소켓 위치/회전에 딱 맞게 스냅(Snap)
-		FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
-		NewWeaponMesh->AttachToComponent(OwnerCharacter->GetMesh(), AttachRules, Slot.AttachSocketName);
+		FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative, true);		NewWeaponMesh->AttachToComponent(OwnerCharacter->GetMesh(), AttachRules, Slot.AttachSocketName);
 
 		// 관리 리스트에 추가
 		EquippedWeaponMeshes.Add(NewWeaponMesh);

@@ -5,11 +5,9 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
-#include "Camera/CameraComponent.h"
 #include "Furi/Weapons/WeaponDataAsset.h"
 #include "Furi/Weapons/WeaponManagerComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/SpringArmComponent.h"
 
 
 // Sets default values
@@ -17,15 +15,6 @@ AFuriCharacterP1::AFuriCharacterP1()
 {
 	// 틱 설정
 	PrimaryActorTick.bCanEverTick = true;
-	//P1 카메라 기본 세팅
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
-	CameraBoom->bUsePawnControlRotation = true;
-
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCamera->bUsePawnControlRotation = false;
 	
 	//P1 메시 기본 세팅
 	GetMesh()->SetRelativeScale3D(FVector(0.21f));
@@ -46,16 +35,6 @@ AFuriCharacterP1::AFuriCharacterP1()
 	ConstructorHelpers::FObjectFinder<UInputAction> TempMoveAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1Move.IA_P1Move'"));
 	if (TempMoveAction.Succeeded())	{
 		MoveAction = TempMoveAction.Object;
-	}
-	ConstructorHelpers::FObjectFinder<UInputAction> TempLookAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1Look.IA_P1Look'"));
-	if (TempLookAction.Succeeded())
-	{
-		LookAction = TempLookAction.Object;
-	}
-	ConstructorHelpers::FObjectFinder<UInputAction> TempMouseLookAction(TEXT("/Script/EnhancedInput.InputAction'/Game/P1/input/Action/IA_P1MouseLook.IA_P1MouseLook'"));
-	if (TempMouseLookAction.Succeeded())
-	{
-		MouseLookAction = TempMouseLookAction.Object;
 	}
 	
 	//기본속도 800으로 설정
@@ -102,11 +81,7 @@ void AFuriCharacterP1::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		{
 			// Moving
 			playerInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AFuriCharacterP1::Move);
-			playerInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AFuriCharacterP1::Look);
 
-			// Looking
-			playerInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFuriCharacterP1::Look);
-			
 			for (const FFuriInputActionConfig& Config : AbilityInputConfigs)
 			{
 				if (Config.InputAction && Config.InputTag.IsValid())
@@ -121,49 +96,34 @@ void AFuriCharacterP1::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void AFuriCharacterP1::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	// route the input
-	DoMove(MovementVector.X, MovementVector.Y);
-}
-
-void AFuriCharacterP1::Look(const FInputActionValue& Value)
-{
-	// input is a Vector2D
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
-
-	// route the input
-	DoLook(LookAxisVector.X, LookAxisVector.Y);
-}
-
-void AFuriCharacterP1::DoMove(float Right, float Forward)
-{
-	if (GetController() != nullptr)
+	// 방어 중이면 이동 불가
+	if (AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking"))))
 	{
-		// find out which way is forward
-		const FRotator Rotation = GetController()->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		// get forward vector
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
-		// get right vector 
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
-		AddMovementInput(ForwardDirection, Forward);
-		AddMovementInput(RightDirection, Right);
+		// 로그를 찍어서 진짜로 여기서 막히는지 확인해 봅시다.
+		UE_LOG(LogTemp, Warning, TEXT("Block Tag Detected! Movement Canceled."));
+		return;
 	}
-}
+	
+	// 카메라의 Yaw 회전값을 기준으로 이동 방향 결정 (하늘에서 내려다보는 기준)
+	const FRotator Rotation = Controller->GetControlRotation();
+	const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-void AFuriCharacterP1::DoLook(float Yaw, float Pitch)
-{
-	if (GetController() != nullptr)
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+	// 실제 이동 입력
+	AddMovementInput(ForwardDirection, MovementVector.Y);
+	AddMovementInput(RightDirection, MovementVector.X);
+
+	// 🌟 [키보드 방향 회전] 입력한 방향으로 캐릭터 몸 돌리기
+	FVector InputDirection = (ForwardDirection * MovementVector.Y) + (RightDirection * MovementVector.X);
+    
+	if (!InputDirection.IsNearlyZero())
 	{
-		// add yaw and pitch input to controller
-		AddControllerYawInput(Yaw);
-		AddControllerPitchInput(Pitch);
+		FRotator TargetRotation = InputDirection.Rotation();
+		// 15.0f는 회전 속도입니다. 수치가 높을수록 즉각적으로 돌아봅니다.
+		SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, GetWorld()->GetDeltaSeconds(), 15.0f));
 	}
 }
 
@@ -215,15 +175,28 @@ void AFuriCharacterP1::InitAbilityActorInfo()
 void AFuriCharacterP1::AbilityInputTagPressed(FGameplayTag InputTag)
 {
 	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
-	
-	// 해당 태그를 가진 모든 어빌리티를 찾아 실행 시도.
-	FGameplayTagContainer AbilityTagsToActivate;
-	AbilityTagsToActivate.AddTag(InputTag);
+    
+	bool bIsAlreadyActive = false; // 켜져 있는지 체크
 
-	// 태그를 통해 어빌리티 활성화 시도
-	AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
-	// 실행 시도 결과 확인
-	bool bSuccess = AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
-	// 로그 추가: 성공 여부 출력
-	UE_LOG(LogTemp, Warning, TEXT("Activation Success: %s"), bSuccess ? TEXT("True") : TEXT("False"));
+	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(InputTag))
+		{
+			if (Spec.IsActive())
+			{
+				// 이미 켜져 있으면 콤보 신호만 줌
+				AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
+				bIsAlreadyActive = true;
+			}
+		}
+	}
+
+	// 켜져 있지 않을 때만 새로 실행함
+	if (!bIsAlreadyActive)
+	{
+		FGameplayTagContainer AbilityTagsToActivate;
+		AbilityTagsToActivate.AddTag(InputTag);
+		AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);
+	}
 }

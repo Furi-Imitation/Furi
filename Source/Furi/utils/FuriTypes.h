@@ -67,6 +67,10 @@ struct FWeaponSlotConfig
 	// 캐릭터의 어느 소켓에 붙일 것인가?
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName AttachSocketName;
+	
+	// 캐릭터마다 무기 크기를 다르게 설정할 수 있도록 변수 추가
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector WeaponScale = FVector(1.0f);
 };
 
 //무기변경에 대한 전체 설정

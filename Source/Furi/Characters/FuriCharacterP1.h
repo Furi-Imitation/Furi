@@ -17,14 +17,6 @@ UCLASS()
 class FURI_API AFuriCharacterP1 : public AGasCharacterBase
 {
 	GENERATED_BODY()
-
-	/** Camera boom positioning the camera behind the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* CameraBoom;
-
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FollowCamera;
 	
 public:
 	// Sets default values for this character's properties
@@ -47,24 +39,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
 	TObjectPtr<UInputAction> MoveAction;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
-	TObjectPtr<UInputAction> LookAction;
-	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Input")
-	TObjectPtr<UInputAction> MouseLookAction;
-	
 	void Move(const FInputActionValue& inputValue);
-	void Look(const FInputActionValue& inputValue);
-	void DoMove(float Right, float Forward);
-	void DoLook(float Yaw, float Pitch);
-	
-public:
-
-	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-
-	/** Returns FollowCamera subobject **/
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	
 protected:
 	//무기 관리 컴포넌트
@@ -82,7 +57,7 @@ public:
 protected:
 	virtual void PossessedBy(AController* NewController) override;
 	
-	// 부여할 어빌리티 목록 (여기에 GA_Dash를 넣을 겁니다)
+	// 부여할 어빌리티 목록
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> DefaultAbilities;
 
