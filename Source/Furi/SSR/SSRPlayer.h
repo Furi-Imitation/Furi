@@ -39,6 +39,18 @@ public:
 	class UInputAction* IA_SSRShieldBlock;
 	
 	UPROPERTY(EditDefaultsOnly, Category = Input)
+	class UInputAction* IA_SSRDash;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Input)
+	class UInputAction* IA_SSRSunFire;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Input)
+	class UInputAction* IA_SSRSkill2;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Input)
+	class UInputAction* IA_SSRSkill3;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Input)
 	class UInputMappingContext* IMC_SSR;
 	
 	// 플레이어 움직임 처리
@@ -62,6 +74,16 @@ public:
 	class USkeletalMeshComponent* ShieldMeshComp;
 	
 	void SheildBlock(const FInputActionValue& InputValue);
+	void Dash (const FInputActionValue& InputValue);
+	void SunFire (const FInputActionValue& InputValue);
+	void SwordSkill2 (const FInputActionValue& InputValue);
+	void SwordSkill3 (const FInputActionValue& InputValue);
 	
 	
+	// Gameplay Ability System
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Weapons)
+	class UWeaponManagerComponent* WeaponManager;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Weapons)
+	TObjectPtr<class UWeaponDataAsset> DefaultWeaponData;
 };

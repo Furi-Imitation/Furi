@@ -7,7 +7,8 @@
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "InputMappingContext.h"
+#include "Furi/Weapons/WeaponDataAsset.h"
+#include "Furi/Weapons/WeaponManagerComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ASSRPlayer::ASSRPlayer()
@@ -17,24 +18,31 @@ ASSRPlayer::ASSRPlayer()
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	
+	WeaponManager = CreateDefaultSubobject<UWeaponManagerComponent>(TEXT("WeaponManger"));
+	
 }
 
 void ASSRPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	if (SwordClass)
+	// if (SwordClass)
+	// {
+	// 	CurrentWeapon = GetWorld()->SpawnActor<ASSRSword>(SwordClass);
+	// 	
+	// 	if (CurrentWeapon)
+	// 	{
+	// 		FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
+	// 		CurrentWeapon->AttachToComponent(
+	// 			GetMesh(),
+	// 			AttachRules,TEXT("WeaponSocket")
+	// 			);
+	// 	}
+	// }
+	
+	if (WeaponManager && DefaultWeaponData)
 	{
-		CurrentWeapon = GetWorld()->SpawnActor<ASSRSword>(SwordClass);
-		
-		if (CurrentWeapon)
-		{
-			FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
-			CurrentWeapon->AttachToComponent(
-				GetMesh(),
-				AttachRules,TEXT("WeaponSocket")
-				);
-		}
+		WeaponManager->EquipWeapon(DefaultWeaponData->WeaponConfig);
 	}
 }
 
@@ -70,8 +78,11 @@ void ASSRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 		if (PlayerInput)
 		{
 			PlayerInput->BindAction(IA_SSRMove,ETriggerEvent::Triggered, this, &ASSRPlayer::Move);
-			PlayerInput->BindAction(IA_SSRSwordAttack,ETriggerEvent::Triggered, this, &ASSRPlayer::SwordAttack);
-			PlayerInput->BindAction(IA_SSRShieldBlock,ETriggerEvent::Triggered,this, &ASSRPlayer::SheildBlock);
+			PlayerInput->BindAction(IA_SSRSwordAttack,ETriggerEvent::Started, this, &ASSRPlayer::SwordAttack);
+			PlayerInput->BindAction(IA_SSRShieldBlock,ETriggerEvent::Started,this, &ASSRPlayer::SheildBlock);
+			PlayerInput->BindAction(IA_SSRDash,ETriggerEvent::Started,this, &ASSRPlayer::Dash);
+			PlayerInput->BindAction(IA_SSRSunFire,ETriggerEvent::Started,this, &ASSRPlayer::SunFire);
+			
 		}
 	}
 }
@@ -114,3 +125,21 @@ void ASSRPlayer::SheildBlock(const FInputActionValue& InputValue)
 	UE_LOG(LogTemp, Warning, TEXT("Shield"));
 }
 
+void ASSRPlayer::Dash(const FInputActionValue& InputValue)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Shield"));
+}
+
+void ASSRPlayer::SunFire(const FInputActionValue& InputValue)
+{
+	UE_LOG(LogTemp, Warning, TEXT("SunFire"));
+}
+
+void ASSRPlayer::SwordSkill2(const FInputActionValue& InputValue)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Shield"));
+}
+
+void ASSRPlayer::SwordSkill3(const FInputActionValue& InputValue)
+{
+}

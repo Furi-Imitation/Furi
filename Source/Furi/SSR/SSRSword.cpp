@@ -13,24 +13,23 @@ ASSRSword::ASSRSword()
 	PrimaryActorTick.bCanEverTick = true;
 	
 	// 충돌 박스 생성
-	BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
-	RootComponent = BoxCollision;
+	// BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
+	// RootComponent = BoxCollision;
 	
 	// 칼 메쉬 생성
 	SwordMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SwordMesh"));
-	SwordMesh->SetupAttachment(BoxCollision);
+	RootComponent = SwordMesh;
 	ConstructorHelpers::FObjectFinder<UStaticMesh> TempSwordMesh(TEXT("/Script/Engine.StaticMesh'/Game/SSR/Assets/Sword/SSRsword/StaticMeshes/sword.sword'"));
 	if (TempSwordMesh.Succeeded())
 	{
 		SwordMesh->SetStaticMesh(TempSwordMesh.Object);
-		SwordMesh->SetRelativeScale3D(FVector(0.1f));
 	}
 	
 	// 충돌 설정
-	BoxCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	BoxCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-	BoxCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
-	BoxCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	SwordMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SwordMesh->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	SwordMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	SwordMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	
 }
 
