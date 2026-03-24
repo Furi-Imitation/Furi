@@ -7,14 +7,10 @@
 
 UGA_Dash::UGA_Dash()
 {
-    // [설정] 이 능력이 실행 중일 때 캐릭터가 가질 태그 (예: 대시 중엔 점프 불가 등을 판단할 때 사용)
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Action.Dash")));
-    
     // [네트워크] 로컬 예측(Local Predicted): 클라이언트가 서버 응답을 기다리지 않고 즉시 대시를 시작하여 조작감을 높입니다.
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
     
-    // [상태 태그] 능력이 활성화된 동안 캐릭터에게 부여되는 태그 (애니메이션 블루프린트 등에서 참조 가능)
-    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dashing")));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 }
 
 void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)

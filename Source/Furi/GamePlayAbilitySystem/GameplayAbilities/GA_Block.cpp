@@ -11,8 +11,8 @@ UGA_Block::UGA_Block()
     // 이 스킬이 멀티플레이에서 어떻게 실행될지 결정하는 아주 중요한 옵션입니다!
     // LocalPredicted: 클라이언트는 핑(Ping)을 기다리지 않고 즉시 실행하고, 서버가 나중에 승인합니다. (반응성 최고)
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Action.Block")));
 }
 
 void UGA_Block::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)

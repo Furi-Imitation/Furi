@@ -1,4 +1,6 @@
 ﻿#include "GA_TeleportDashAttack.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GameFramework/Character.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -12,7 +14,7 @@ UGA_TeleportDashAttack::UGA_TeleportDashAttack()
 {
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Action.TeleportDashAttack")));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 }
 
 void UGA_TeleportDashAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -67,7 +69,15 @@ void UGA_TeleportDashAttack::PrepareNextStrike()
     {
         GetAbilitySystemComponentFromActorInfo()->AddGameplayCue(VanishCueTag);
     }
-
+    // [Gameplay Cue] 사운드나 파티클 같은 '시각적 효과'를 실행합니다.
+    if (TeleportCueTag.IsValid()) 
+    {
+        FGameplayCueParameters Params;
+        Params.Location = MyChar->GetActorLocation();
+        Params.Instigator = MyChar;
+        GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(TeleportCueTag, Params);
+    }
+    
     // [대기] 설정된 StrikeDelay(0.5초)만큼 기다리는 태스크 실행
     UAbilityTask_WaitDelay* DelayTask = UAbilityTask_WaitDelay::WaitDelay(this, StrikeDelay);
     if (DelayTask)
@@ -81,6 +91,8 @@ void UGA_TeleportDashAttack::PrepareNextStrike()
 void UGA_TeleportDashAttack::OnStrikeDelayFinished()
 {
     ACharacter* MyChar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+    UAbilitySystemComponent* MyASC = GetAvatarActorFromActorInfo() ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetAvatarActorFromActorInfo()) : nullptr;
+
     if (!MyChar) return;
 
     // [연출] 타격 직전, 투명화를 해제하여 모습을 드러냅니다!
@@ -88,13 +100,30 @@ void UGA_TeleportDashAttack::OnStrikeDelayFinished()
     {
         GetAbilitySystemComponentFromActorInfo()->RemoveGameplayCue(VanishCueTag);
     }
+    // 휘두르기 연출 (VFX Trail) - ActualComboIndex 사용
+    FGameplayCueParameters SwingParams;
+    SwingParams.Instigator = MyChar;
+    SwingParams.TargetAttachComponent = MyChar->GetMesh();
 
+    FGameplayTag AttackVFXTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Attack.Large"));
+    
+    MyASC->ExecuteGameplayCue(AttackVFXTag, SwingParams);
+    
     // [위치 이동] 1, 2, 3타 위치 계산 및 텔레포트 실행
     FVector TeleportLoc;
     FRotator TeleportRot;
     UFuriBlueprintFunctionLibrary::CalculateTeleportTransform(LockedTarget, CurrentStrikeCount + 1, 220.f, TeleportLoc, TeleportRot);
     
     MyChar->SetActorLocationAndRotation(TeleportLoc, TeleportRot, false, nullptr, ETeleportType::TeleportPhysics);
+    
+    // 3. [Gameplay Cue] 사운드나 파티클 같은 '시각적 효과'를 실행합니다.
+    if (TeleportCueTag.IsValid()) 
+    {
+        FGameplayCueParameters Params;
+        Params.Location = MyChar->GetActorLocation();
+        Params.Instigator = MyChar;
+        GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(TeleportCueTag, Params);
+    }
     
     // [공격] 몽타주 재생
     if (StrikeMontages.IsValidIndex(CurrentStrikeCount) && StrikeMontages[CurrentStrikeCount])
@@ -115,6 +144,7 @@ void UGA_TeleportDashAttack::OnStrikeDelayFinished()
         }
     }
 
+    
     // 타수 증가
     CurrentStrikeCount++;
 }

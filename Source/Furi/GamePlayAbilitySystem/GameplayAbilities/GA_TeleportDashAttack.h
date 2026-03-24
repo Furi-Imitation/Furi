@@ -54,6 +54,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Tags")
 	FGameplayTag VanishCueTag;
 	
+	// 텔레포트 태그
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cues")
+	FGameplayTag TeleportCueTag;
+	
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Tags")
 	TSubclassOf<class UGameplayEffect> DamageGEClass;
 	

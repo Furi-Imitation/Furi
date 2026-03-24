@@ -96,6 +96,11 @@ void AFuriCharacterP1::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void AFuriCharacterP1::Move(const FInputActionValue& Value)
 {
+	// 캐릭터에게 AbilityLock 태그가 있다면 이동 입력을 즉시 리턴(무시)합니다.
+	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Lock"))))
+	{
+		return;
+	}
 	FVector2D MovementVector = Value.Get<FVector2D>();
 	// 방어 중이면 이동 불가
 	if (AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking"))))
@@ -182,7 +187,7 @@ void AFuriCharacterP1::AbilityInputTagPressed(FGameplayTag InputTag)
 
 	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
 	{
-		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(InputTag))
+		if (Spec.Ability && Spec.Ability->GetAssetTags().HasTag(InputTag))
 		{
 			if (Spec.IsActive())
 			{
