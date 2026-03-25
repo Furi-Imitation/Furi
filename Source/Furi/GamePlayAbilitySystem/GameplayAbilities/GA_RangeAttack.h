@@ -34,4 +34,10 @@ protected:
 	// 노티파이에서 던져줄 태그
 	UPROPERTY(EditAnywhere, Category = "Combat|Range")
 	FGameplayTag HitEventTag;
+
+	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+	FGameplayTag StartCueTag;
+	
+	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+	FGameplayTag HitCueTag;
 };

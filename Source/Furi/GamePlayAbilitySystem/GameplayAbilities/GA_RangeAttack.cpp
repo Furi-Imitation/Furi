@@ -15,6 +15,9 @@ UGA_RangeAttack::UGA_RangeAttack()
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible")));
     
 	HitEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Montage.Hit"));
+	
+	StartCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.RangeAttack.Start"));
+	HitCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.RangeAttack"));
 }
 
 void UGA_RangeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -25,6 +28,19 @@ void UGA_RangeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
+	UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
+
+	// 스킬 시작 즉시 Start Cue 실행
+	if (MyASC && StartCueTag.IsValid())
+	{
+		FGameplayCueParameters Params;
+		Params.Location = GetAvatarActorFromActorInfo()->GetActorLocation();
+		Params.Instigator = GetAvatarActorFromActorInfo();
+		Params.NormalizedMagnitude = 3.f;   // 나이아가라 속도 조절용 (User.PlayRate)
+		MyASC->ExecuteGameplayCue(StartCueTag, Params);
+		UE_LOG(LogTemp, Log, TEXT("[RangeAttack] Start Cue 실행"));
+	}
+	
 	// 1. 🌟 노티파이(GameplayEvent) 대기 태스크 생성
 	UAbilityTask_WaitGameplayEvent* WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, HitEventTag);
 	if (WaitEventTask)
@@ -45,18 +61,45 @@ void UGA_RangeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	}
 }
 
-// 🌟 [핵심] 사용자님 요청대로 FFuriDamageInfo를 사용하는 데미지 로직
+// FFuriDamageInfo를 사용하는 데미지 로직
 void UGA_RangeAttack::OnHitEventReceived(FGameplayEventData Payload)
 {
     AActor* MyAvatar = GetAvatarActorFromActorInfo();
     UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
     if (!MyAvatar || !MyASC) return;
 
+	
     FVector Origin = MyAvatar->GetActorLocation();
     TArray<FOverlapResult> OverlapResults;
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(MyAvatar);
 
+	if (HitCueTag.IsValid())
+	{
+		FGameplayCueParameters CueParams;
+		CueParams.Location = Origin;
+		CueParams.RawMagnitude = AttackRadius; // 나이아가라 크기 조절용 (User.Radius)
+		CueParams.NormalizedMagnitude = 1.5f;   // 나이아가라 속도 조절용 (User.PlayRate)
+		// Params.Instigator 등을 통해 추가 데이터 전달 가능
+        
+		MyASC->ExecuteGameplayCue(HitCueTag, CueParams);
+		UE_LOG(LogTemp, Log, TEXT("[RangeAttack] Hit Cue 실행 (타격 시점)"));
+	}
+	
+	if (GetWorld())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RangeAttack] 10M 디버그 구체 생성!"));
+		
+		DrawDebugSphere(
+			GetWorld(),
+			Origin,
+			AttackRadius, 
+			32,
+			FColor::Red,
+			false,
+			1.0f 
+		);
+	}
     // 10미터 범위 스캔
     bool bHit = GetWorld()->OverlapMultiByChannel(OverlapResults, Origin, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(AttackRadius), Params);
 
