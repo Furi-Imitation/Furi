@@ -8,6 +8,7 @@
 #include "SSRSword.h"
 #include "SSRPlayer.generated.h"
 
+struct FFuriInputActionConfig;
 /**
  * 
  */

@@ -68,30 +68,29 @@ void USSRAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 void USSRAttack::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
     Super::InputPressed(Handle, ActorInfo, ActivationInfo);
-    
-    // 로그 2: 클릭 입력이 어빌리티로 전달되는지 확인
-    UE_LOG(LogTemp, Log, TEXT("SSRAttack: InputPressed! WindowOpened: %s, Reserved: %s"), 
-        bComboWindowOpened ? TEXT("True") : TEXT("False"), 
-        bNextComboReserved ? TEXT("True") : TEXT("False"));
 
-    // 콤보 창이 열려있고, 아직 예약 전이며, 마지막 타수(4타) 이전일 때
-    if (bComboWindowOpened && !bNextComboReserved && CurrentComboIndex < 4)
+    // 이미 다음 공격을 예약했다면, 더 이상의 클릭은 무시합니다.
+    if (bNextComboReserved) 
+    {
+        UE_LOG(LogTemp, Log, TEXT("Input ignored: Combo already reserved."));
+        return; 
+    }
+
+    // 윈도우가 열려있을 때만 처리 (선입력 버퍼가 없다면 이 조건이 필수)
+    if (bComboWindowOpened && CurrentComboIndex < 4)
     {
         bNextComboReserved = true; 
 
-        if (AActor* MyAvatar = GetAvatarActorFromActorInfo())
-        {
-            RotateTowardsClosestEnemy(MyAvatar, AttackRange);
-        }
-        
+        // 섹션 이름 조립
         FName CurrentSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex);
         FName NextSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex + 1);
         
-        // 엔진에게 다음 섹션 예약 명령
+        // 예약!
         MontageSetNextSectionName(CurrentSection, NextSection);
         
+        // 예약 성공 시에만 인덱스 증가
         CurrentComboIndex++; 
-        UE_LOG(LogTemp, Log, TEXT("Combo Reserved! Next: %s"), *NextSection.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("Combo Reserved Success! CurrentIndex is now: %d"), CurrentComboIndex);
     }
 }
 
