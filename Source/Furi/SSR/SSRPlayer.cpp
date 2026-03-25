@@ -213,7 +213,9 @@ void ASSRPlayer::AbilityInputTagPressed(FGameplayTag InputTag)
 			if (Spec.IsActive())
 			{
 				// 이미 켜져 있으면 콤보 신호만 줌
-				AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				// AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				// 토글방식
+				AbilitySystemComponent->CancelAbilityHandle(Spec.Handle);
 				UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
 				bIsAlreadyActive = true;
 			}
