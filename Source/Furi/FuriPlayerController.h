@@ -49,4 +49,20 @@ private:
 	// 월드에서 찾은 메인 카메라 액터 보관
 	UPROPERTY()
 	AActor* MainCameraActor;
+	
+public:
+	// GA에서 호출할 카메라 제어 함수
+	void SetCinematicMode(bool bEnabled, AActor* TargetActor = nullptr);
+	void UpdateStandardCamera(float DeltaTime);
+	
+protected:
+	
+	FRotator DefaultCameraRotation;
+	
+	// 연출 상태 플래그
+	bool bIsCinematicMode = false;
+    
+	// 연출 시 카메라가 쳐다볼 대상 (보통 공격 대상)
+	UPROPERTY()
+	AActor* CinematicTarget = nullptr;
 };
