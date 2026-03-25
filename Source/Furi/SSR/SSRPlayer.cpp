@@ -208,15 +208,15 @@ void ASSRPlayer::AbilityInputTagPressed(FGameplayTag InputTag)
 	
 	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
 	{
-		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(InputTag))
+		if (Spec.Ability && Spec.Ability->GetAssetTags().HasTag(InputTag))
 		{
 			if (Spec.IsActive())
 			{
 				// 이미 켜져 있으면 콤보 신호만 줌
-				// AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				AbilitySystemComponent->AbilitySpecInputPressed(Spec);
 				// 토글방식
 				AbilitySystemComponent->CancelAbilityHandle(Spec.Handle);
-				UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
+				//UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
 				bIsAlreadyActive = true;
 			}
 		}
@@ -226,7 +226,7 @@ void ASSRPlayer::AbilityInputTagPressed(FGameplayTag InputTag)
 	{
 		FGameplayTagContainer AbilityTagsToActivate;
 		AbilityTagsToActivate.AddTag(InputTag);
-		AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed"));
+		AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);	//UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed"));
 
 	}
 	
