@@ -59,6 +59,7 @@ void UGA_Attack::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGa
     {
         bNextComboReserved = true; 
 
+        //상대를 향해 방향 전환
         if (AActor* MyAvatar = GetAvatarActorFromActorInfo())
         {
             RotateTowardsClosestEnemy(MyAvatar, AttackRange);
