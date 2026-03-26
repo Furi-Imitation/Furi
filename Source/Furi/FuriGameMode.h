@@ -13,5 +13,16 @@ UCLASS()
 class FURI_API AFuriGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
+public:
+	// 컨트롤러에 따라 어떤 폰(Pawn) 클래스를 줄지 결정하는 함수입니다.
+	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
+
+protected:
+	// 에디터에서 선택할 수 있게 노출
+	UPROPERTY(EditAnywhere, Category = "Classes")
+	TSubclassOf<APawn> HostClass; // BP_P1Player 담을 곳
+
+	UPROPERTY(EditAnywhere, Category = "Classes")
+	TSubclassOf<APawn> ClientClass; // BP_SSRPlayer 담을 곳
 };
