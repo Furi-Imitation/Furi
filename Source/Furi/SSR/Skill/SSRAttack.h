@@ -48,8 +48,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Attack")
 	float AttackBoxHalfHeight = 50.0f;
 
-	int32 CurrentComboIndex = 1;
+	int32 CurrentComboIndex = 4;
+	// 다음 콤보가 실행될수 있는 구간에 들어왔는지 체크
 	bool bComboWindowOpened = false;
+	// 키를 입력바아서 다음 콤보가 예약받았을때
 	bool bNextComboReserved = false;
 
 	UPROPERTY()

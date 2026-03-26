@@ -36,7 +36,8 @@ void USSRAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
         return;
     }
     
-    CurrentComboIndex = 1;
+    CurrentComboIndex = 4;
+    
     bComboWindowOpened = false;
     bNextComboReserved = false;
     
@@ -77,7 +78,7 @@ void USSRAttack::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGa
     }
 
     // 윈도우가 열려있을 때만 처리 (선입력 버퍼가 없다면 이 조건이 필수)
-    if (bComboWindowOpened && CurrentComboIndex < 4)
+    if (bComboWindowOpened && CurrentComboIndex < 7)
     {
         bNextComboReserved = true; 
 
@@ -140,6 +141,8 @@ void USSRAttack::PlayComboSection()
 
 void USSRAttack::PerformHitCheck()
 {
+    UE_LOG(LogTemp, Warning, TEXT("SSRAttack: HitCheck Started!")); // 1. 함수 실행 확인
+    
     AActor* MyAvatar = GetAvatarActorFromActorInfo();
     AGasCharacterBase* MyCharacter = Cast<AGasCharacterBase>(MyAvatar);
     if (!MyCharacter) return;
@@ -151,45 +154,84 @@ void USSRAttack::PerformHitCheck()
     {
         FName CurrentSection = AnimInstance->Montage_GetCurrentSection(ComboMontage);
         FString SectionStr = CurrentSection.ToString();
-        if (SectionStr.Contains(TEXT("1"))) ActualIndex = 1;
-        else if (SectionStr.Contains(TEXT("2"))) ActualIndex = 2;
-        else if (SectionStr.Contains(TEXT("3"))) ActualIndex = 3;
-        else if (SectionStr.Contains(TEXT("4"))) ActualIndex = 4;
+        if (SectionStr.Contains(TEXT("4"))) ActualIndex = 4;
+        else if (SectionStr.Contains(TEXT("5"))) ActualIndex = 5;
+        else if (SectionStr.Contains(TEXT("6"))) ActualIndex = 6;
+        else if (SectionStr.Contains(TEXT("7"))) ActualIndex = 7;
     }
 
     // --- 박스 기반 물리 판정 ---
     FVector Forward = MyAvatar->GetActorForwardVector();
-    FVector BoxHalfExtent = FVector(AttackRange / 2.0f, AttackBoxHalfWidth, AttackBoxHalfHeight); 
-    FVector BoxCenter = MyAvatar->GetActorLocation() + (Forward * (AttackRange / 2.0f));
+    // FVector BoxHalfExtent = FVector(AttackRange / 2.0f, AttackBoxHalfWidth, AttackBoxHalfHeight); 
+    FVector BoxHalfExtent = FVector(150.f,100.f,100.f);
+    FVector BoxCenter = MyAvatar->GetActorLocation() + (Forward * 150.f);
+    //FVector BoxCenter = MyAvatar->GetActorLocation() + (Forward * (AttackRange / 2.0f));
 
     TArray<FOverlapResult> Overlaps;
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(MyAvatar);
     
-    bool bHit = GetWorld()->OverlapMultiByChannel(Overlaps, BoxCenter, MyAvatar->GetActorRotation().Quaternion(), ECC_Pawn, FCollisionShape::MakeBox(BoxHalfExtent), Params);
+    bool bHit = GetWorld()->OverlapMultiByChannel(
+        Overlaps, 
+        BoxCenter, 
+        MyAvatar->GetActorRotation().Quaternion(),
+        ECC_Pawn,
+        FCollisionShape::MakeBox(BoxHalfExtent),
+        Params
+        );
 
     if (bHit)
     {
+        // 이번 공격에서 이미 데미지를 입은 액터들을 저장
+        TArray<AActor*> HitActors;
+        
+        UE_LOG(LogTemp, Log, TEXT("SSRAttack: Raw Hit Count: %d"), Overlaps.Num());
+        
         for (auto& Result : Overlaps)
         {
+            AActor* OverlappedActor = Result.GetActor();
+            if (!OverlappedActor) continue;
+            
+            // ★ 이미 리스트에 있다면(중복 부위 충돌 등) 무시
+            if (HitActors.Contains(OverlappedActor)) continue;
+            
+            
             if (AGasCharacterBase* Target = Cast<AGasCharacterBase>(Result.GetActor()))
             {
+                // 데미지 주기전에 리스트에 추가해서 중복방지
+                HitActors.Add(OverlappedActor);
+                
+                UE_LOG(LogTemp, Log, TEXT("SSRAttack: Valid Target Found: %s"), *Target->GetName());
+                
                 FFuriDamageInfo DamageInfo;
-                DamageInfo.Amount = (ActualIndex == 4) ? -30.f : -10.f;
-                DamageInfo.DamageResponse = (ActualIndex == 4) ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
-                DamageInfo.bCanBeParried = (ActualIndex < 4);
+                DamageInfo.Amount = (ActualIndex == 7) ? -30.f : -10.f;
+                DamageInfo.DamageResponse = (ActualIndex == 7) ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
+                DamageInfo.bCanBeParried = (ActualIndex < 7);
                 DamageInfo.bCanBeBlocked = true;
 
                 TSubclassOf<UGameplayEffect> DamageGE = ComboDamageMap.Contains(ActualIndex) ? ComboDamageMap[ActualIndex] : nullptr;
                 if (DamageGE)
                 {
+                    UE_LOG(LogTemp, Warning, TEXT("SSRAttack: Damage Applied! Amount: %f"), DamageInfo.Amount); // 4. 최종 성공 확인
                     FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(DamageGE);
                     Spec.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), DamageInfo.Amount);
                     Target->TakeFuriDamage(DamageInfo, Spec, MyAvatar);
                 }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("SSRAttack: DamageGE is NULL!")); // GE 미할당 확인
+                }
             }
         }
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("SSRAttack: Hit Nothing (Box Overlap Failed)"));
+    }
+    
+#if !UE_BUILD_SHIPPING
+    DrawDebugBox(GetWorld(), BoxCenter, BoxHalfExtent, MyAvatar->GetActorRotation().Quaternion(), FColor::Red, false, 2.0f, 0, 2.0f);
+#endif
 }
 
 
