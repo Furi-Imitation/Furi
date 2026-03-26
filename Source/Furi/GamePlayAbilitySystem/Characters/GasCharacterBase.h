@@ -8,6 +8,8 @@
 #include "AbilitySystemComponent.h"
 #include "GasCharacterBase.generated.h"
 
+class USpringArmComponent;
+class UCameraComponent;
 enum class EFuriDamageResponse : uint8;
 class UBasicAttributeSet;
 
@@ -73,4 +75,21 @@ public:
 	// 공격자로부터 대미지 정보와 GAS Effect 정보를 함께 전달받는 함수
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	virtual void TakeFuriDamage(const FFuriDamageInfo& DamageInfo, const FGameplayEffectSpecHandle& DamageSpec, AActor* InstigatorActor);// 위로 띄우는 힘 (수직)
+	
+protected:
+	// --- 🌟 궁극기 연출 전용 카메라 컴포넌트 ---
+	// 에디터에서 값을 확인할 수 있고 블루프린트에서 읽기 전용으로 설정합니다.
+    
+	/** 궁극기 시점을 담당할 SpringArm */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ultimate | Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USpringArmComponent> UltSpringArm;
+
+	/** 실제 시점이 될 Camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ultimate | Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCameraComponent> UltCamera;
+
+public:
+	// --- 유틸리티: 생성된 컴포넌트의 게터(Getter) ---
+	FORCEINLINE USpringArmComponent* GetUltSpringArm() const { return UltSpringArm; }
+	FORCEINLINE UCameraComponent* GetUltCamera() const { return UltCamera; }
 };
