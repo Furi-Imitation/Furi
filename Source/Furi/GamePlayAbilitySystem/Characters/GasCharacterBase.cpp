@@ -1,10 +1,13 @@
 // GasCharacterBase.cpp
 
 #include "GasCharacterBase.h"
+
+#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "Furi/utils/FuriTypes.h"
+#include "GameFramework/SpringArmComponent.h"
 
 AGasCharacterBase::AGasCharacterBase()
 {
@@ -41,6 +44,31 @@ AGasCharacterBase::AGasCharacterBase()
     // --- 어트리뷰트 세트 초기화 ---
     // HP, MP 등 수치 데이터를 저장하는 클래스를 생성하여 ASC와 연결합니다.
     BasicAttributeSet = CreateDefaultSubobject<UBasicAttributeSet>(TEXT("BasicAttributeSet"));
+    
+    // 1. UltSpringArm 생성
+    UltSpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("UltSpringArm"));
+    // 캡슐(Root) 컴포넌트에 붙입니다. 보통 머리 위치 쯤인 소켓에 붙이기도 합니다.
+    UltSpringArm->SetupAttachment(RootComponent); 
+    
+    // 기본 연출용 설정 (이 값들은 GA나 PC에서 실시간으로 변경 가능합니다.)
+    UltSpringArm->TargetArmLength = 400.0f; // 적당히 가깝게
+    UltSpringArm->SocketOffset = FVector(0.0f, 0.0f, 50.0f); // 살짝 위로
+    
+    // 🌟 중요: 연출 중 카메라가 벽이나 바닥을 뚫지 않도록 충돌 테스트를 켭니다.
+    UltSpringArm->bDoCollisionTest = false; 
+    
+    // 캐릭터의 회전값에 따라 카메라가 휙휙 돌지 않도록 상속을 꺼둡니다. (고정 시점 연출용)
+    UltSpringArm->bInheritPitch = false;
+    UltSpringArm->bInheritYaw = true;
+    UltSpringArm->bInheritRoll = false;
+
+    // 2. UltCamera 생성
+    UltCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("UltCamera"));
+    // SpringArm 끝점(SocketName)에 붙입니다.
+    UltCamera->SetupAttachment(UltSpringArm, USpringArmComponent::SocketName); 
+    
+    // 이 카메라는 PlayerController의 회전값(마우스 등)을 따르지 않게 설정합니다.
+    UltCamera->bUsePawnControlRotation = false;
 }
 
 void AGasCharacterBase::BeginPlay()
