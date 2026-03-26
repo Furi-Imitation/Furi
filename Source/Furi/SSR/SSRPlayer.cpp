@@ -200,35 +200,32 @@ void ASSRPlayer::InitAbilityActorInfo()
 void ASSRPlayer::AbilityInputTagPressed(FGameplayTag InputTag)
 {
 	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed %s"), *InputTag.ToString());
-	
-	if (!AbilitySystemComponent || !InputTag.IsValid())
-		return;
+    
+	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
 
 	bool bIsAlreadyActive = false;
-	
+    
+	// 1. 현재 활성화된 어빌리티들 중 해당 태그를 가진 녀석이 있는지 확인
 	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
 	{
-		if (Spec.Ability && Spec.Ability->AbilityTags.HasTag(InputTag))
+		if (Spec.Ability && Spec.Ability->GetAssetTags().HasTag(InputTag))
 		{
 			if (Spec.IsActive())
 			{
-				// 이미 켜져 있으면 콤보 신호만 줌
-				// AbilitySystemComponent->AbilitySpecInputPressed(Spec);
-				// 토글방식
-				AbilitySystemComponent->CancelAbilityHandle(Spec.Handle);
-				UE_LOG(LogTemp, Warning, TEXT("Sent InputPressed to Active Ability!"));
+				//실행 중이라면 입력 신호(InputPressed)만 보내고 끝냅니다!
+				AbilitySystemComponent->AbilitySpecInputPressed(Spec);
+				
 				bIsAlreadyActive = true;
+				UE_LOG(LogTemp, Log, TEXT("Existing Ability found. Sent InputPressed."));
+				break; // 찾았으니 루프 탈출
 			}
 		}
 	}
-	
+    
+	// 2. 실행 중인 게 없을 때만 새로 실행
 	if (!bIsAlreadyActive)
 	{
-		FGameplayTagContainer AbilityTagsToActivate;
-		AbilityTagsToActivate.AddTag(InputTag);
-		AbilitySystemComponent->TryActivateAbilitiesByTag(AbilityTagsToActivate);	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagPressed"));
-
+		AbilitySystemComponent->TryActivateAbilitiesByTag(FGameplayTagContainer(InputTag));
+		UE_LOG(LogTemp, Log, TEXT("No Active Ability. Trying to Activate New."));
 	}
-	
-	
 }
