@@ -117,4 +117,87 @@ UAbilitySystemComponent* AGasCharacterBase::GetAbilitySystemComponent() const
     return AbilitySystemComponent;
 }
 
- 
+ void AGasCharacterBase::TakeFuriDamage(const FFuriDamageInfo& DamageInfo, const FGameplayEffectSpecHandle& DamageSpec, AActor* InstigatorActor)
+{
+    // 1. ASC 및 속성 세트 유효성 검사
+    if (!AbilitySystemComponent || !BasicAttributeSet) return;
+
+    // 2. 사망 체크 (이미 체력이 0 이하라면 무시)
+    if (BasicAttributeSet->GetHealth() <= 0.0f) return;
+
+    // ---------------------------------------------------------
+    // 🛡️ [방어 판정 1] 무적 (Invincible)
+    // ---------------------------------------------------------
+    bool bIsInvincible = AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible")));
+    if (bIsInvincible && !DamageInfo.bShouldDamageInvincible)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Furi] Damage Evaded: Character is Invincible."));
+        return; // 데미지 및 리액션 없이 종료
+    }
+
+    // ---------------------------------------------------------
+    // 🛡️ [방어 판정 2] 가드 (Blocking)
+    // ---------------------------------------------------------
+    bool bIsBlocking = AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking")));
+    if (bIsBlocking && DamageInfo.bCanBeBlocked)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Furi] Attack Blocked!"));
+        
+        // 가드 성공 시 데미지는 무시하고 전용 리액션 몽타주만 재생
+        if (GuardReactionMontage)
+        {
+            PlayAnimMontage(GuardReactionMontage);
+        }
+        return; 
+    }
+
+    // ---------------------------------------------------------
+    // 💥 [피격 확정] 데미지 적용 (Gameplay Effect)
+    // ---------------------------------------------------------
+    if (DamageSpec.IsValid())
+    {
+        // GE Spec을 통해 실제 Attribute(Health 등)를 깎습니다.
+        AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
+    }
+
+    // ---------------------------------------------------------
+    // 🎬 [리액션 처리] 몽타주 및 상태(기절 등) 부여
+    // ---------------------------------------------------------
+    // 요청하신 대로 물리적 LaunchCharacter는 삭제했습니다. 
+    // 모든 이동은 애니메이션의 'Root Motion'에 의존합니다.
+
+    switch (DamageInfo.DamageResponse)
+    {
+        case EFuriDamageResponse::HitReaction:
+            if (HitReactionMontage) PlayAnimMontage(HitReactionMontage);
+            break;
+
+        case EFuriDamageResponse::Stagger:
+            if (StaggerMontage) PlayAnimMontage(StaggerMontage);
+            break;
+
+        case EFuriDamageResponse::Stun:
+            // 🌟 [기절 특수 처리] GE를 통해 지속 시간만큼 State.Stun 태그 부여
+          /*  if (StunGEClass)
+            {
+                FGameplayEffectContextHandle StunContext = AbilitySystemComponent->MakeEffectContext();
+                FGameplayEffectSpecHandle StunSpec = AbilitySystemComponent->MakeOutgoingSpec(StunGEClass, 1.0f, StunContext);
+                
+                if (StunSpec.IsValid())
+                {
+                    // 전달받은 StunDuration을 GE의 지속 시간으로 설정
+                    StunSpec.Data.Get()->SetDuration(DamageInfo.StunDuration, false);
+                    AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*StunSpec.Data.Get());
+                }
+            }
+        */
+            // 기절 몽타주 재생 (태그 이벤트에 의해 중단될 수 있도록 설계)
+            if (StunMontage) PlayAnimMontage(StunMontage);
+            break;
+
+        case EFuriDamageResponse::KnockBack:
+            // 물리 힘 없이 넉백 몽타주만 재생 (Root Motion 활용)
+            if (KnockBackMontage) PlayAnimMontage(KnockBackMontage);
+            break;
+    }
+}
