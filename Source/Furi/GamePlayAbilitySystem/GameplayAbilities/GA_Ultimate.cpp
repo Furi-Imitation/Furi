@@ -15,6 +15,8 @@ UGA_Ultimate::UGA_Ultimate()
     
     HitEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Hit.Check"));
     UltimateFlashTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.UltimateFlash"));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+
 }
 
 void UGA_Ultimate::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

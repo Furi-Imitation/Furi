@@ -13,11 +13,15 @@ UGA_RangeAttack::UGA_RangeAttack()
     
 	// 실행 중 무적을 위해 OwnedTags에 추가
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible")));
-    
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+
 	HitEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Montage.Hit"));
 	
 	StartCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.RangeAttack.Start"));
 	HitCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.RangeAttack"));
+	
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+
 }
 
 void UGA_RangeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)

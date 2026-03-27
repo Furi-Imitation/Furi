@@ -12,6 +12,7 @@ UGA_Block::UGA_Block()
     // LocalPredicted: 클라이언트는 핑(Ping)을 기다리지 않고 즉시 실행하고, 서버가 나중에 승인합니다. (반응성 최고)
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 
 }
 

@@ -11,6 +11,8 @@ UGA_Dash::UGA_Dash()
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
     
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+
 }
 
 void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
