@@ -23,8 +23,9 @@ USSRDash::USSRDash()
 	// 2. 무적 및 상태 태그 (Activation Owned Tags)
 	// 어빌리티가 실행되는 동안 캐릭터에게 자동으로 부여되는 태그입니다.
 	// 'State.Invulnerable' 태그가 있으면 데미지 계산 로직에서 무시하도록 설정할 수 있습니다.
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dash")));
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invulnerable"))); // 무적 태그
+	// dash 없애고 invisi
+	// ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Dash")));
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible"))); // 무적 태그
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));         // 이동/회전 제한용 태그
 }
 
