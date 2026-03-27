@@ -19,6 +19,7 @@ public:
     
 	void SetCinematicMode(bool bEnabled, AActor* TargetActor = nullptr);
 	void UpdateStandardCamera(float DeltaTime);
+	
 
 protected:
 	virtual void BeginPlay() override;

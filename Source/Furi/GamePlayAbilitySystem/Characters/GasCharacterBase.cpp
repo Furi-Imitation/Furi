@@ -119,7 +119,8 @@ UAbilitySystemComponent* AGasCharacterBase::GetAbilitySystemComponent() const
 
 void AGasCharacterBase::TakeFuriDamage(const FFuriDamageInfo& DamageInfo, const FGameplayEffectSpecHandle& DamageSpec, AActor* InstigatorActor)
 {
-    if (!AbilitySystemComponent) return;
+    // ASC와 AttributeSet이 둘 다 확실히 있는지 확인
+    if (!AbilitySystemComponent || !BasicAttributeSet) return;
 
     // 🌟 이미 죽었다면 대미지나 리액션을 무시합니다. (BasicAttributeSet가 유효한지 확인)
     if (BasicAttributeSet && BasicAttributeSet->GetHealth() <= 0.0f)
