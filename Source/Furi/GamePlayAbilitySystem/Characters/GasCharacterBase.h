@@ -54,22 +54,22 @@ public:
 	void HandleDamageResponse(EFuriDamageResponse Response, AActor* Attacker = nullptr);
 
 protected:
-	// --- [애니메이션 설정] ---
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
-	UAnimMontage* HitReactionMontage; // 가벼운 피격 (움찔)
+	// --- 리액션 몽타주 리스트 ---
+	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
+	TObjectPtr<UAnimMontage> HitReactionMontage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
-	UAnimMontage* StaggerMontage;     // 강한 피격 (비틀거림)
+	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
+	TObjectPtr<UAnimMontage> StaggerMontage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
-	UAnimMontage* KnockBackMontage;   // 넉백 (공중에 뜸/날아감)
+	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
+	TObjectPtr<UAnimMontage> StunMontage;
 
-	// --- [넉백 물리 설정] ---
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Physics")
-	float KnockBackPushForce = 1500.f; // 뒤로 밀어내는 힘 (수평)
+	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
+	TObjectPtr<UAnimMontage> KnockBackMontage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Physics")
-	float KnockBackUpForce = 600.f;  
+	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
+	TObjectPtr<UAnimMontage> GuardReactionMontage; // 가드 성공 시 모션
+	
 	
 public:
 	// 공격자로부터 대미지 정보와 GAS Effect 정보를 함께 전달받는 함수
