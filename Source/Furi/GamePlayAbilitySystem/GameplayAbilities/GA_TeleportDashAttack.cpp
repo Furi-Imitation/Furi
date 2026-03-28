@@ -8,6 +8,7 @@
 #include "Engine/OverlapResult.h"
 #include "Furi/FuriBlueprintFunctionLibrary.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "Furi/utils/FuriTypes.h"
 
 UGA_TeleportDashAttack::UGA_TeleportDashAttack()
@@ -215,8 +216,14 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
                     DamageInfo.bCanBeBlocked = true;
 
                     // --- GE Spec 생성 및 대미지 주입 ---
-                    FGameplayEffectContextHandle Context = GetAbilitySystemComponentFromActorInfo()->MakeEffectContext();
-                    FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponentFromActorInfo()->MakeOutgoingSpec(DamageGEClass, 1.0f, Context);
+                    FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponentFromActorInfo()->MakeEffectContext();
+                    FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
+                    if (FuriContext)
+                    {
+                        FuriContext->SetDamageInfo(DamageInfo);
+                    }
+
+                    FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponentFromActorInfo()->MakeOutgoingSpec(DamageGEClass, 1.0f, ContextHandle);
                     
                     if (SpecHandle.IsValid())
                     {
@@ -226,8 +233,8 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
                             DamageInfo.Amount
                         );
 
-                        // 🌟 최종 대미지 적용!
-                        TargetChar->TakeFuriDamage(DamageInfo, SpecHandle, MyAvatar);
+                        // 🌟 최종 대미지 적용 (AttributeSet에서 리액션 처리)
+                        TargetChar->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
                         
                         // 타격 성공 시 루프 중단 (한 번만 맞게)
                         return; 

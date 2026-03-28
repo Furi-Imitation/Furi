@@ -3,6 +3,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Furi/FuriPlayerController.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "Furi/utils/FuriTypes.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/OverlapResult.h"
@@ -157,13 +158,21 @@ void UGA_Ultimate::ProcessPhysicalHit()
             DamageInfo.bCanBeBlocked = true;
             DamageInfo.bShouldForceInterrupt = bIsFinisher;
 
-            FGameplayEffectContextHandle Context = MyASC->MakeEffectContext();
-            FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, Context);
+            FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+            FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
+            if (FuriContext)
+            {
+                FuriContext->SetDamageInfo(DamageInfo);
+            }
+
+            FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, ContextHandle);
             
             if (SpecHandle.IsValid())
             {
                 SpecHandle.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), DamageInfo.Amount);
-                TargetCharacter->TakeFuriDamage(DamageInfo, SpecHandle, MyAvatar);
+                
+                // 타겟에게 GE 적용 (AttributeSet에서 리액션 처리)
+                TargetCharacter->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
             }
         }
     }

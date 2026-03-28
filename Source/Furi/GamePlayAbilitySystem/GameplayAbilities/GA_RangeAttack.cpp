@@ -5,6 +5,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Engine/OverlapResult.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "Furi/utils/FuriTypes.h"
 
 UGA_RangeAttack::UGA_RangeAttack()
@@ -128,16 +129,22 @@ void UGA_RangeAttack::OnHitEventReceived(FGameplayEventData Payload)
                 DamageInfo.bShouldForceInterrupt = true;
 
                 // 2. GE Spec 작성 (피를 깎는 용도)
-                FGameplayEffectContextHandle Context = MyASC->MakeEffectContext();
-                FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, Context);
+                FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+                FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
+                if (FuriContext)
+                {
+                    FuriContext->SetDamageInfo(DamageInfo);
+                }
+
+                FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, ContextHandle);
                 
                 if (SpecHandle.IsValid())
                 {
                     // GE 수치 주입
                     SpecHandle.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), DamageInfo.Amount);
 
-                    // TakeFuriDamage 호출 (구조체 + GE 스펙 함께 전달)
-                    TargetCharacter->TakeFuriDamage(DamageInfo, SpecHandle, MyAvatar);
+                    // 타겟에게 GE 적용 (AttributeSet에서 리액션 처리)
+                    TargetCharacter->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
                     
                     UE_LOG(LogTemp, Log, TEXT("[RangeAttack] %s에게 10M 광역 피해와 넉백 적용!"), *TargetCharacter->GetName());
                 }

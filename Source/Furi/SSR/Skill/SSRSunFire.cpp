@@ -8,6 +8,7 @@
 #include "Engine/OverlapResult.h"
 #include "DrawDebugHelpers.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "Furi/utils/FuriTypes.h"
 #include "GameFramework/Character.h"
 
@@ -107,8 +108,14 @@ void USSRSunFire::ApplySunFireDamage()
             DamageInfo.DamageResponse = EFuriDamageResponse::None;
             DamageInfo.bCanBeBlocked = false; // 장판은 가드 불가 설정
             
-            FGameplayEffectContextHandle Context = MyASC->MakeEffectContext();
-            FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, Context);
+            FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+            FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
+            if (FuriContext)
+            {
+                FuriContext->SetDamageInfo(DamageInfo);
+            }
+
+            FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, ContextHandle);
                 
             if (SpecHandle.IsValid())
             {
@@ -118,8 +125,8 @@ void USSRSunFire::ApplySunFireDamage()
                    DamageInfo.Amount
                 );
 
-                // 3. 🌟 핵심: 타겟의 커스텀 함수 하나만 호출 (이 안에서 모든 판정이 끝남)
-                TargetCharacterBase->TakeFuriDamage(DamageInfo, SpecHandle, OwnerActor);
+                // 3. 🌟 타겟에게 GE 적용 (AttributeSet에서 리액션 처리)
+                TargetCharacterBase->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
                     
                 // 4. 타격 비주얼 효과
                 FGameplayCueParameters HitParams;
