@@ -8,6 +8,7 @@
 #include "AbilitySystemComponent.h"
 #include "GasCharacterBase.generated.h"
 
+struct FFuriDamageInfo;
 class USpringArmComponent;
 class UCameraComponent;
 enum class EFuriDamageResponse : uint8;
@@ -51,10 +52,10 @@ public:
 	
 public:
 	// 🌟 피격 반응을 통합 처리하는 핵심 함수 (Attacker를 받아 날아갈 방향을 계산함)
-	void HandleDamageResponse(EFuriDamageResponse Response, AActor* Attacker = nullptr);
+	void HandleDamageResponse(const FFuriDamageInfo& DamageInfo, AActor* Attacker = nullptr);
 
 protected:
-	// --- 리액션 몽타주 리스트 ---
+	// --- 리액션 몽타주 ---
 	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
 	TObjectPtr<UAnimMontage> HitReactionMontage;
 
@@ -66,9 +67,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
 	TObjectPtr<UAnimMontage> KnockBackMontage;
-
-	UPROPERTY(EditAnywhere, Category = "Furi | Design | Animation")
-	TObjectPtr<UAnimMontage> GuardReactionMontage; // 가드 성공 시 모션
 
 protected:
 	// --- 🌟 궁극기 연출 전용 카메라 컴포넌트 ---
@@ -86,4 +84,9 @@ public:
 	// --- 유틸리티: 생성된 컴포넌트의 게터(Getter) ---
 	FORCEINLINE USpringArmComponent* GetUltSpringArm() const { return UltSpringArm; }
 	FORCEINLINE UCameraComponent* GetUltCamera() const { return UltCamera; }
+	
+protected:
+	// 연속 피격 시 기존 타이머를 취소하기 위해 멤버 변수로 선언
+	FTimerHandle StunTimerHandle;
+	FTimerHandle LockTimerHandle;
 };

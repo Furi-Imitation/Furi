@@ -203,7 +203,10 @@ void UGA_Attack::PerformHitCheck()
             
             if (DamageGE)
             {
-                FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+                // [수정] 기본 MakeEffectContext는 FFuriGameplayEffectContext를 반환하지 않으므로 직접 생성합니다.
+                FGameplayEffectContextHandle ContextHandle = FGameplayEffectContextHandle(new FFuriGameplayEffectContext());
+                ContextHandle.AddInstigator(MyAvatar, MyAvatar);
+                
                 FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
                 if (FuriContext)
                 {

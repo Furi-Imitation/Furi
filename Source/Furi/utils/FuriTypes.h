@@ -42,6 +42,9 @@ struct FFuriDamageInfo
 	EFuriDamageResponse DamageResponse = EFuriDamageResponse::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float StunDuration = 0.f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bShouldDamageInvincible = false; // 무적 무시 여부
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

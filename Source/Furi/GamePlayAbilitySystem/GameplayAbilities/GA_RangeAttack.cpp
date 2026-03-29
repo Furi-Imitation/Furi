@@ -129,7 +129,10 @@ void UGA_RangeAttack::OnHitEventReceived(FGameplayEventData Payload)
                 DamageInfo.bShouldForceInterrupt = true;
 
                 // 2. GE Spec 작성 (피를 깎는 용도)
-                FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+                // [수정] 기본 MakeEffectContext 대신 커스텀 컨텍스트를 직접 생성합니다.
+                FGameplayEffectContextHandle ContextHandle = FGameplayEffectContextHandle(new FFuriGameplayEffectContext());
+                ContextHandle.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo());
+                
                 FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
                 if (FuriContext)
                 {

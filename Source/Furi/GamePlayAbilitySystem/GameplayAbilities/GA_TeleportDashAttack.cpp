@@ -216,7 +216,10 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
                     DamageInfo.bCanBeBlocked = true;
 
                     // --- GE Spec 생성 및 대미지 주입 ---
-                    FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponentFromActorInfo()->MakeEffectContext();
+                    // [수정] 기본 MakeEffectContext 대신 커스텀 컨텍스트를 직접 생성합니다.
+                    FGameplayEffectContextHandle ContextHandle = FGameplayEffectContextHandle(new FFuriGameplayEffectContext());
+                    ContextHandle.AddInstigator(MyAvatar, MyAvatar);
+                    
                     FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
                     if (FuriContext)
                     {
