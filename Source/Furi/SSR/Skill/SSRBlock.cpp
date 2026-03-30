@@ -25,21 +25,32 @@ USSRBlock::USSRBlock()
 void USSRBlock::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("SSRBlock: ActivateAbility Called!"));
+	UE_LOG(LogTemp, Warning, TEXT("=== SSRBlock Start ==="));
 	
-	
-	
+	UE_LOG(LogTemp, Warning, TEXT("Attempting to Commit..."));
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
+		UE_LOG(LogTemp, Error, TEXT("❌ CommitAbility FAILED! (Cost or Cooldown)"));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("SSRBlock: cooltime called"));
+	UE_LOG(LogTemp, Warning, TEXT("✅ CommitAbility SUCCESS!"));
 	
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
 	bBlockTriggered = false;
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	AActor* AvatarActor = GetAvatarActorFromActorInfo(); // 내 캐릭터 가져오기
+	
+	// 블락중 지속될 파란 구체 이펙트
+	if (ASC && AvatarActor && BlockVisualCueTag.IsValid())
+	{
+		FGameplayCueParameters Params;
+		Params.Instigator = AvatarActor;
+		Params.EffectCauser = AvatarActor;
+		// 소유자를 명시적으로 전달하거나 ASC를 통해 대상을 지정합니다
+		ASC->AddGameplayCue(BlockVisualCueTag);
+	}
 	
 	// VFX/SFX 시작 큐
 	if (BlockStartCueTag.IsValid())
@@ -104,6 +115,14 @@ void USSRBlock::OnBlockTimeout()
 void USSRBlock::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	
+	// [추가] 블락 종료 시 구체 이펙트 제거 (Remove)
+	if (BlockVisualCueTag.IsValid() && ASC)
+	{
+		ASC->RemoveGameplayCue(BlockVisualCueTag);
+	}
+	
 	if (BlockEndCueTag.IsValid())
 	{
 		GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(BlockEndCueTag, FGameplayCueParameters());

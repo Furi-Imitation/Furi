@@ -47,15 +47,15 @@ void USSRDash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
 	
 	if (!Character || !ASC) return;
 
-	// 1. 캐릭터 모습 숨기기 (사라지는 연출)
-	Character->GetMesh()->SetHiddenInGame(true, true);
+	// 1. 캐릭터 모습 숨기기 (사라지는 연출) / 블프로 함
+	// Character->GetMesh()->SetHiddenInGame(true, true);
 	
 	if (DashStartCueTag.IsValid())
 	{
 		FGameplayCueParameters Params;
 		Params.Location = Character->GetActorLocation();
 		Params.Instigator = Character;
-		ASC->ExecuteGameplayCue(DashStartCueTag, Params);
+		ASC->AddGameplayCue(DashStartCueTag, Params);
 	}
 
 	// 2. 방향 결정 (입력 방향 vs 캐릭터 정면)
@@ -89,16 +89,17 @@ void USSRDash::OnDashFinished()
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (Character)
 	{
-		// 4. 대쉬 종료 시 캐릭터 다시 보이기
-		Character->GetMesh()->SetHiddenInGame(false, true);
+		// 4. 대쉬 종료 시 캐릭터 다시 보이기 / 블프로 함
+		// Character->GetMesh()->SetHiddenInGame(false, true);
 		
-		if(DashEndCueTag.IsValid() && ASC)
-		{
-			FGameplayCueParameters Params;
-			Params.Location = Character->GetActorLocation();
-			Params.Instigator = Character;
-			ASC->ExecuteGameplayCue(DashEndCueTag, Params);
-		}
+		// if(DashEndCueTag.IsValid() && ASC)
+		// {
+		// 	FGameplayCueParameters Params;
+		// 	Params.Location = Character->GetActorLocation();
+		// 	Params.Instigator = Character;
+		// 	ASC->ExecuteGameplayCue(DashEndCueTag, Params);
+		// }
+		
 	}
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
@@ -124,6 +125,13 @@ FVector USSRDash::GetDashDirection()
 
 void USSRDash::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if(DashStartCueTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("✨ Removing Dash Cue"));
+		ASC->RemoveGameplayCue(DashStartCueTag);
+	}
+	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

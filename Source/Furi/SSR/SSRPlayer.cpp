@@ -17,7 +17,13 @@ ASSRPlayer::ASSRPlayer()
 	PrimaryActorTick.bCanEverTick = true;
 	
 	bUseControllerRotationYaw = false;
-	GetCharacterMovement()->bOrientRotationToMovement = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true; // 원래는 false
+	
+	bReplicates = true;
+	ACharacter::SetReplicateMovement(true);
+
+	// ⭐ 핵심: 컨트롤러의 회전(카메라 각도 등)을 서버에 복제합니다.
+	bNetUseOwnerRelevancy = true;
 	
 	WeaponManager = CreateDefaultSubobject<UWeaponManagerComponent>(TEXT("WeaponManger"));
 	
@@ -97,6 +103,12 @@ void ASSRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 
 void ASSRPlayer::Move(const FInputActionValue& InputActionValue)
 {
+	// 캐릭터에게 AbilityLock 태그가 있다면 이동 입력을 즉시 리턴(무시)합니다.
+	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Lock"))))
+	{
+		return;
+	}
+	
 	FVector2D value = InputActionValue.Get<FVector2D>();
 	
 	// 입력 받은 값을 방향으로

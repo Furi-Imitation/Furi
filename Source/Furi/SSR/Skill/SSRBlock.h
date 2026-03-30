@@ -51,4 +51,8 @@ protected:
 	// 블락 종료 Cue
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Block|Cues")
 	FGameplayTag BlockEndCueTag;
+	
+	// 블락 Visual Cue
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Block|Cues")
+	FGameplayTag BlockVisualCueTag;
 };
