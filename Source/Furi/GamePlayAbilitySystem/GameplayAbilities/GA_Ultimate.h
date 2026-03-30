@@ -12,8 +12,12 @@ class FURI_API UGA_Ultimate : public UGameplayAbility
 public:
 	UGA_Ultimate();
 
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	                             const FGameplayAbilityActivationInfo ActivationInfo,
+	                             const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	                        const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+	                        bool bWasCancelled) override;
 
 protected:
 	UFUNCTION()
@@ -25,7 +29,6 @@ protected:
 	/** 🌟 물리 판정 및 대미지 로직 통합 함수 */
 	void ProcessPhysicalHit();
 
-protected:
 	UPROPERTY(EditAnywhere, Category = "Ultimate | Animation")
 	TObjectPtr<UAnimMontage> UltimateMontage;
 
@@ -47,6 +50,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate | Damage")
 	TSubclassOf<class UGameplayEffect> DamageEffectClass;
+
+	// 🌟 궁극기 도중 내 앞에 고정해둘 타겟
+	UPROPERTY()
+	TObjectPtr<AActor> GrabbedTarget;
 
 private:
 	bool bFirstHitSuccess = false;

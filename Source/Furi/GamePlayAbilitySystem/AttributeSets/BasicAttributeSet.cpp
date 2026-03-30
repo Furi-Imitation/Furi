@@ -7,8 +7,8 @@
 UBasicAttributeSet::UBasicAttributeSet()
 {
 	// 캐릭터가 처음 생성될 때 가질 기본 스탯들입니다.
-	Health = 100.f;
-	MaxHealth = 100.f;
+	Health = 500.f;
+	MaxHealth = 500.f;
 	Stamina = 100.f;
 	MaxStamina = 100.f;
 }
@@ -45,11 +45,11 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectM
 	AActor* SourceActor = Context.GetOriginalInstigator();
 	AActor* TargetActor = Data.Target.GetAvatarActor();
 	AGasCharacterBase* TargetCharacter = Cast<AGasCharacterBase>(TargetActor);
-    
+
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
 		SetHealth(FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth()));
-       
+
 		if (GetHealth() <= 0.0f)
 		{
 			if (TargetCharacter)
@@ -68,7 +68,8 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectM
 				const FFuriDamageInfo& DamageInfo = FuriContext->GetDamageInfo();
 				if (TargetCharacter)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[BasicAttributeSet] Calling HandleDamageResponse for %s"), *TargetCharacter->GetName());
+					UE_LOG(LogTemp, Warning, TEXT("[BasicAttributeSet] Calling HandleDamageResponse for %s"),
+					       *TargetCharacter->GetName());
 					TargetCharacter->HandleDamageResponse(DamageInfo, SourceActor);
 				}
 				else
@@ -78,7 +79,10 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectM
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("[BasicAttributeSet] FuriContext is NULL! Check if the GE is using FFuriGameplayEffectContext."));
+				UE_LOG(LogTemp, Error,
+				       TEXT(
+					       "[BasicAttributeSet] FuriContext is NULL! Check if the GE is using FFuriGameplayEffectContext."
+				       ));
 			}
 		}
 	}
