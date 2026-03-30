@@ -40,7 +40,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
 	FGameplayTag DashEndCueTag;
 	
-	// 대쉬중 지속(잔상, 효과)
+	// 대시 종료 태그
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
 	FGameplayTag DashVisualCueTag;
 	
