@@ -33,6 +33,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Dash")
 	float DashDuration = 0.3f;
 	
+	// 대시 시작 태그
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
+	FGameplayTag DashStartCueTag;
+	// 대시 종료 태그
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
+	FGameplayTag DashEndCueTag;
+	
+	// 대쉬중 지속(잔상, 효과)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
+	FGameplayTag DashVisualCueTag;
+	
 protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	

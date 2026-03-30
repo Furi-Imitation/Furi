@@ -40,22 +40,23 @@ void USSRDash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	
 	// Cue 설정
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (ASC)
-	{
-		// 1. 대쉬 시작 이펙트 (폭발적인 연기나 사운드)
-		// 블루프린트에서 'GameplayCue.Character.Dash.Start' 태그를 가진 큐를 만드세요.
-		ASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Dash.Start")));
-	}
-
 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	if (!Character) return;
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	
+	if (!Character || !ASC) return;
 
 	// 1. 캐릭터 모습 숨기기 (사라지는 연출)
 	Character->GetMesh()->SetHiddenInGame(true, true);
 	
-	
+	if (DashStartCueTag.IsValid())
+	{
+		FGameplayCueParameters Params;
+		Params.Location = Character->GetActorLocation();
+		Params.Instigator = Character;
+		ASC->ExecuteGameplayCue(DashStartCueTag, Params);
+	}
 
 	// 2. 방향 결정 (입력 방향 vs 캐릭터 정면)
 	FVector DashDir = GetDashDirection();
@@ -91,9 +92,12 @@ void USSRDash::OnDashFinished()
 		// 4. 대쉬 종료 시 캐릭터 다시 보이기
 		Character->GetMesh()->SetHiddenInGame(false, true);
 		
-		if (ASC)
+		if(DashEndCueTag.IsValid() && ASC)
 		{
-			ASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.Character.Dash.End")));
+			FGameplayCueParameters Params;
+			Params.Location = Character->GetActorLocation();
+			Params.Instigator = Character;
+			ASC->ExecuteGameplayCue(DashEndCueTag, Params);
 		}
 	}
 
