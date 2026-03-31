@@ -63,4 +63,8 @@ private:
 	// 포인터 캐싱
 	TWeakObjectPtr<UAbilitySystemComponent> PlayerASC;
 	TWeakObjectPtr<UAbilitySystemComponent> EnemyASC;
+	
+protected:
+	// 매 프레임 UI를 업데이트하기 위한 틱 함수 (타이머 용도)
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 };

@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "FuriPlayerController.generated.h"
 
+class UFuriGameHUDWidget;
 /**
  * 
  */
@@ -48,4 +49,19 @@ private:
 
 	// 복구용 기본값
 	FRotator DefaultMainCameraRotation;
+	
+protected:
+	//HUD 생성
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UFuriGameHUDWidget> MainHUDWidgetClass;
+
+	// 🌟 실제로 화면에 띄워진 위젯의 메모리를 쥐고 있을 포인터
+	UPROPERTY(Transient)
+	TObjectPtr<UFuriGameHUDWidget> MainHUDWidget;
+	
+	// 🌟 적 탐색을 위한 타이머 핸들
+	FTimerHandle EnemySearchTimerHandle;
+
+	// 🌟 적을 찾아서 UI에 연결 시도하는 함수
+	void TryFindEnemyForHUD();
 };

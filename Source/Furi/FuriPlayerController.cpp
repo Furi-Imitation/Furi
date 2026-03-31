@@ -1,8 +1,11 @@
 ﻿#include "FuriPlayerController.h"
+
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/FuriGameHUDWidget.h"
 
 AFuriPlayerController::AFuriPlayerController()
 {
@@ -19,7 +22,9 @@ void AFuriPlayerController::BeginPlay()
     // 현재 기기를 조작하는 로컬 플레이어인지 확인합니다. (멀티플레이어 환경 대비)
     if (IsLocalPlayerController())
     {
-        // 맵에 배치된 외부 카메라 중 'MainCamera' 태그를 가진 액터를 찾습니다.
+        // ==========================================
+        // 1. 카메라 초기화 세팅
+        // ==========================================
         TArray<AActor*> FoundCameras;
         UGameplayStatics::GetAllActorsWithTag(GetWorld(), FName("MainCamera"), FoundCameras);
         
@@ -33,6 +38,28 @@ void AFuriPlayerController::BeginPlay()
             // 시네마틱 연출 후 원래 구도로 복구하기 위해 초기 회전값을 저장해 둡니다.
             DefaultMainCameraRotation = MainCameraActor->GetActorRotation();
         }
+
+        // ==========================================
+        // 2. UI (HUD) 생성 및 데이터 연동
+        // ==========================================
+        // 2. UI 생성 및 내 캐릭터 연동 (기존 동일)
+        if (MainHUDWidgetClass)
+        {
+            MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
+            if (MainHUDWidget)
+            {
+                MainHUDWidget->AddToViewport();
+
+                if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
+                {
+                    MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
+                }
+                
+                // 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
+                // 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
+                GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this, &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
+            }
+        }
     }
 }
 
@@ -41,7 +68,7 @@ void AFuriPlayerController::PlayerTick(float DeltaTime)
     Super::PlayerTick(DeltaTime);
     if (!IsLocalPlayerController() || !MainCameraActor) return;
 
-    // 🌟 궁극기 등 시네마틱 연출 모드일 때는 카메라가 플레이어들을 쫓아다니지 않도록 막습니다.
+    // 시네마틱 연출 모드일 때는 카메라가 플레이어들을 쫓아다니지 않도록 막습니다.
     if (bIsCinematicMode) return;
 
     // 일반 전투 상황이라면 두 플레이어를 화면에 담기 위해 카메라 위치를 업데이트합니다.
@@ -98,10 +125,10 @@ void AFuriPlayerController::SetCinematicMode(bool bEnabled, AActor* TargetActor)
 
     if (bEnabled)
     {
-        // 🌟 1. 맵에 배치된 외부 카메라에서 캐릭터 내부의 '궁극기 카메라'로 부드럽게(0.2초) 화면을 넘깁니다.
+        // 1. 맵에 배치된 외부 카메라에서 캐릭터 내부의 '궁극기 카메라'로 부드럽게(0.2초) 화면을 넘깁니다.
         SetViewTargetWithBlend(MyChar, 0.2f, EViewTargetBlendFunction::VTBlend_Cubic);
 
-        // 🌟 2. 시네마틱 카메라를 지탱하는 SpringArm의 구도를 연출에 맞게 조절합니다.
+        // 2. 시네마틱 카메라를 지탱하는 SpringArm의 구도를 연출에 맞게 조절합니다.
         if (USpringArmComponent* Arm = MyChar->GetUltSpringArm())
         {
             Arm->TargetArmLength = 350.0f; // 카메라를 캐릭터 쪽으로 당깁니다.
@@ -117,11 +144,39 @@ void AFuriPlayerController::SetCinematicMode(bool bEnabled, AActor* TargetActor)
     }
     else
     {
-        // 🌟 3. 연출이 끝나면 원래 사용하던 맵의 메인 카메라로 화면을 부드럽게(0.3초) 복구합니다.
+        // 3. 연출이 끝나면 원래 사용하던 맵의 메인 카메라로 화면을 부드럽게(0.3초) 복구합니다.
         if (MainCameraActor)
         {
             SetViewTargetWithBlend(MainCameraActor, 0.3f, EViewTargetBlendFunction::VTBlend_Cubic);
             MainCameraActor->SetActorRotation(DefaultMainCameraRotation);
+        }
+    }
+}
+
+// 적 탐색 함수
+void AFuriPlayerController::TryFindEnemyForHUD()
+{
+    // 아직 UI가 없거나, 내 캐릭터가 없다면 탐색 보류
+    if (!MainHUDWidget || !GetPawn()) return;
+
+    TArray<AActor*> FoundCharacters;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGasCharacterBase::StaticClass(), FoundCharacters);
+
+    for (AActor* Actor : FoundCharacters)
+    {
+        AGasCharacterBase* PotentialEnemy = Cast<AGasCharacterBase>(Actor);
+                    
+        // 찾은 캐릭터가 유효하고, '나' 자신이 아니며, 적의 ASC가 정상적으로 생성(복제)되었다면
+        if (PotentialEnemy && PotentialEnemy != GetPawn() && PotentialEnemy->GetAbilitySystemComponent())
+        {
+            // UI에 연동
+            MainHUDWidget->InitEnemyStats(PotentialEnemy->GetAbilitySystemComponent());
+            
+            UE_LOG(LogTemp, Log, TEXT("[UI] Delayed Enemy ASC Linked Success: %s"), *PotentialEnemy->GetName());
+            
+            // 목적을 달성했으므로 더 이상 탐색하지 않도록 타이머를 파괴합니다.
+            GetWorldTimerManager().ClearTimer(EnemySearchTimerHandle);
+            break; 
         }
     }
 }
