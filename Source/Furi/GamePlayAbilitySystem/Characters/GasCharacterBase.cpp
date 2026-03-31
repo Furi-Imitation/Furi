@@ -8,6 +8,7 @@
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "Furi/utils/FuriTypes.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
 AGasCharacterBase::AGasCharacterBase()
@@ -122,6 +123,28 @@ void AGasCharacterBase::HandleDamageResponse(const FFuriDamageInfo& DamageInfo, 
 		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("DamageAmount : %f"), DamageInfo.Amount);
+	if (DamageInfo.Amount < 0)
+	{
+		float HitStopDuration = 0.05f; // 기본 히트스탑 시간
+
+		switch (DamageInfo.DamageResponse)
+		{
+		case EFuriDamageResponse::KnockBack:
+			HitStopDuration = 0.1f; // 강한 공격은 더 길게 멈춤
+			break;
+		case EFuriDamageResponse::Stun:
+			HitStopDuration = 0.1f;
+			break;
+		case EFuriDamageResponse::HitReaction:
+			HitStopDuration = 0.05f; // 일반 공격은 짧게 멈춤
+			break;
+		}
+
+		// 히트스탑 실행! (0.01배속으로 멈춤)
+		ExecuteHitStop(HitStopDuration, 0.2f);
+	}
+
 	// 2. 리액션 몽타주 결정
 	UAnimMontage* TargetMontage = nullptr;
 	switch (Response)
@@ -150,7 +173,7 @@ void AGasCharacterBase::HandleDamageResponse(const FFuriDamageInfo& DamageInfo, 
 	}
 
 	// ---------------------------------------------------------
-	// 💡 [핵심 수정] State.Lock 부여 및 스택 중첩 방지
+	// State.Lock 부여 및 스택 중첩 방지
 	// ---------------------------------------------------------
 	const FGameplayTag LockTag = FGameplayTag::RequestGameplayTag(FName("State.Lock"));
 	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
@@ -228,5 +251,52 @@ void AGasCharacterBase::Multicast_StopReactionMontage_Implementation(UAnimMontag
 		{
 			AnimInst->Montage_Stop(0.2f, MontageToStop);
 		}
+	}
+}
+
+void AGasCharacterBase::ExecuteHitStop(float Duration, float TimeScale)
+{
+	if (Duration <= 0.f || !GetWorld())
+	{
+		return;
+	}
+
+	// 1. [핵심] 현재 히트스탑 중이 아닐 때만, 원래 시간 배속(궁극기 0.3 등)을 기억해 둡니다.
+	// 이렇게 해야 연타를 맞아도 0.01배속을 원래 속도로 착각하고 저장하는 버그가 안 생깁니다.
+	if (!bIsHitStopping)
+	{
+		PreHitStopTimeDilation = UGameplayStatics::GetGlobalTimeDilation(GetWorld());
+		bIsHitStopping = true;
+	}
+
+	// 2. 이미 예약된 히트스탑 종료 티커가 있다면 취소 (연속 타격 시 히트스탑 시간 연장)
+	if (HitStopTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HitStopTickerHandle);
+	}
+
+	// 3. 세상을 히트스탑 배속(0.01)으로 멈춥니다.
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), TimeScale);
+
+	// 4. 현실 시간 기준으로 티커 예약
+	HitStopTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateLambda([this](float DeltaTime)
+		{
+			StopHitStop();
+			return false; // false 리턴 시 티커 1회 실행 후 파괴
+		}),
+		Duration
+	);
+}
+
+void AGasCharacterBase::StopHitStop()
+{
+	if (GetWorld() && bIsHitStopping)
+	{
+		// 5. [핵심] 무조건 1.0으로 돌리는 게 아니라, 기억해둔 이전 배속(궁극기 중이었다면 0.3)으로 안전하게 복구합니다.
+		UGameplayStatics::SetGlobalTimeDilation(GetWorld(), PreHitStopTimeDilation);
+
+		bIsHitStopping = false;
+		HitStopTickerHandle.Reset();
 	}
 }

@@ -15,7 +15,6 @@ UGA_Ultimate::UGA_Ultimate()
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 
 	HitEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Hit.Check"));
-	UltimateFlashTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.UltimateFlash"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 }
 
@@ -132,7 +131,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 
 			// 2. 내 정면(X축) 300, 좌우(Y) 0, 높이(Z) 0으로 위치를 고정합니다.
 			GrabbedTarget->SetActorRelativeLocation(FVector(100.0f, 0.0f, 0.0f));
-			
+
 			MontageJumpToSection(TEXT("Cinematic_Combo"));
 		}
 
@@ -142,6 +141,8 @@ void UGA_Ultimate::ProcessPhysicalHit()
 		HitParams.Location = ClosestTarget->GetActorLocation();
 
 		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Hit")), HitParams);
+		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.CameraShake.Hit")),
+		                          HitParams);
 
 		// 🌟 [막타 판정] Dash(1) + Combo(3) = 총 4타가 막타
 		bool bIsFinisher = (CurrentHitCount == 4);
@@ -154,7 +155,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 		// [막타 전용 연출: Flash + CameraShake]
 		if (bIsFinisher)
 		{
-			MyASC->ExecuteGameplayCue(UltimateFlashTag, HitParams);
+			//MyASC->ExecuteGameplayCue(UltimateFlashTag, HitParams);
 		}
 
 		// --- 대미지 적용 ---
@@ -162,7 +163,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 		if (TargetCharacter && DamageEffectClass)
 		{
 			FFuriDamageInfo DamageInfo;
-			DamageInfo.Amount = bIsFinisher ? -70.f : -30.f; // 4타 대미지 강화
+			DamageInfo.Amount = bIsFinisher ? -100.f : 0.f; // 4타 대미지 강화
 			DamageInfo.DamageType = EFuriDamageType::Melee;
 			DamageInfo.DamageResponse = bIsFinisher ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
 

@@ -45,9 +45,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Ultimate | Tags")
 	FGameplayTag HitEventTag;
 
-	UPROPERTY(EditAnywhere, Category = "Ultimate | Tags")
-	FGameplayTag UltimateFlashTag;
-
 	UPROPERTY(EditAnywhere, Category = "Ultimate | Damage")
 	TSubclassOf<class UGameplayEffect> DamageEffectClass;
 

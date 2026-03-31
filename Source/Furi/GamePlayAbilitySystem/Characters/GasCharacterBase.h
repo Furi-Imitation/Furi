@@ -95,4 +95,16 @@ protected:
 	// 🌟 서버가 모든 클라이언트에게 몽타주 정지를 명령하는 함수
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_StopReactionMontage(UAnimMontage* MontageToStop);
+
+	// 히트스탑 중인지 확인하는 플래그
+	bool bIsHitStopping = false;
+
+	// 히트스탑이 걸리기 직전의 원래 시간 배속 (예: 궁극기 중이라면 0.3)
+	float PreHitStopTimeDilation = 1.0f;
+
+	// 현재 실행 중인 티커 핸들 (연속 타격 시 이전 티커를 취소하기 위함)
+	FTSTicker::FDelegateHandle HitStopTickerHandle;
+
+	void ExecuteHitStop(float Duration, float TimeScale = 0.01f);
+	void StopHitStop();
 };

@@ -178,7 +178,8 @@ void UGA_TeleportDashAttack::OnStrikeInterrupted()
 void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
 {
 	AActor* MyAvatar = GetAvatarActorFromActorInfo();
-	if (!MyAvatar || !LockedTarget)
+	UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
+	if (!MyAvatar || !LockedTarget || !MyASC)
 	{
 		return;
 	}
@@ -221,6 +222,14 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
 				AGasCharacterBase* TargetChar = Cast<AGasCharacterBase>(LockedTarget);
 				if (TargetChar && DamageGEClass)
 				{
+					FGameplayCueParameters HitParams;
+					HitParams.Instigator = MyAvatar;
+					HitParams.EffectCauser = MyAvatar;
+					HitParams.Location = TargetChar->GetActorLocation();
+
+					MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.CameraShake.Hit")),
+					                          HitParams);
+
 					// --- 대미지 정보 설정 ---
 					FFuriDamageInfo DamageInfo;
 					DamageInfo.Amount = (CurrentStrikeCount == MaxStrikeCount) ? -30.f : -15.f;
