@@ -26,6 +26,7 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
+
 	
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -105,6 +106,7 @@ protected:
 
 	// 입력 처리 함수
 	void AbilityInputTagPressed(FGameplayTag InputTag);
+	void AbilityInputTagReleased(FGameplayTag InputTag);
 	
 protected:
 	// 게임 시작 시 자동으로 걸어줄 스테미나 재생 이펙트
