@@ -15,8 +15,11 @@ class FURI_API AAuraBladeProjectile : public AActor
 public:
 	// Sets default values for this actor's properties
 	AAuraBladeProjectile();
+	
+	UPROPERTY()
+	FGameplayTag ImpactCueTag;
 
-	void Initialize(float InDamage, float InChargeRatio, FGameplayEffectSpecHandle InSpechHandle);
+	void Initialize(float InDamage, float InChargeRatio, FGameplayEffectSpecHandle InSpecHandle, FGameplayTag InHitTag);
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -36,6 +39,10 @@ protected:
 	// 발사체 움직임 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	class UProjectileMovementComponent* ProjectileMovement;
+	
+	
+	// UPROPERTY()
+	// TArray<AActor*> HitActors;
 
 public:
 	// Called every frame

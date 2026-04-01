@@ -82,10 +82,15 @@ void USSRAuraBlade::OnDelayFinished()
     FGameplayEffectSpecHandle DamageSpecHandle;
     if (DamageEffectClass)
     {
+        // 1. 컨텍스트 생성 및 가해자 설정
+        FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
+        ContextHandle.AddInstigator(Character, Character); // 가해자를 시전자 캐릭터로 명시
+
+        // 2. 컨텍스트를 포함하여 스펙 생성
         DamageSpecHandle = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
         if (DamageSpecHandle.IsValid())
         {
-            FGameplayTag DamageTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage"));
+            FGameplayTag DamageTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount"));
             UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(DamageSpecHandle, DamageTag, AbilityDamage);
         }
     }
@@ -107,7 +112,7 @@ void USSRAuraBlade::OnDelayFinished()
        
        if (Projectile)
        {
-          Projectile->Initialize(AbilityDamage, 1.0f, DamageSpecHandle);
+          Projectile->Initialize(AbilityDamage, 1.0f, DamageSpecHandle, HitCueTag);
           UE_LOG(LogTemp, Warning, TEXT("[AuraBlade] 투사체 생성 성공!"));
        }
     }

@@ -26,7 +26,7 @@ protected:
 	TSubclassOf<class UGameplayEffect> DamageEffectClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AuraBlade|Balance")
-	float AbilityDamage = 20.f;
+	float AbilityDamage = -20.f;
 
 	// 대기 시간 (1.0f = 1초)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AuraBlade|Balance")
@@ -40,4 +40,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AuraBlade|Effects")
 	FGameplayTag FireCueTag;   // 발사 시 효과
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AuraBlade|Effects")
+	FGameplayTag HitCueTag; 
 };
