@@ -12,48 +12,58 @@
 UGA_Ultimate::UGA_Ultimate()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
-
-	HitEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Hit.Check"));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 }
 
 void UGA_Ultimate::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                                    const FGameplayAbilityActivationInfo ActivationInfo,
                                    const FGameplayEventData* TriggerEventData)
 {
+	// 🌟 [핵심] 코스트 및 쿨타임 소모 확인! (빠져있던 부분)
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
+
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	bFirstHitSuccess = false;
 	CurrentHitCount = 0;
 
-	// 🚀 [Launch 제거] 이제 캐릭터는 제자리 혹은 애니메이션 루트 모션에 따라 움직입니다.
-
 	// 1. 타격 이벤트 대기
-	UAbilityTask_WaitGameplayEvent* WaitHitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, HitEventTag);
-	WaitHitTask->EventReceived.AddDynamic(this, &UGA_Ultimate::OnHitEventReceived);
-	WaitHitTask->ReadyForActivation();
+	if (HitEventTag.IsValid())
+	{
+		UAbilityTask_WaitGameplayEvent* WaitHitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+			this, HitEventTag);
+		if (WaitHitTask)
+		{
+			WaitHitTask->EventReceived.AddDynamic(this, &UGA_Ultimate::OnHitEventReceived);
+			WaitHitTask->ReadyForActivation();
+		}
+	}
 
 	// 2. 몽타주 실행
-	UAbilityTask_PlayMontageAndWait* PlayTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this, TEXT("UltTask"), UltimateMontage, 1.0f, TEXT("Dash"));
-	PlayTask->OnCompleted.AddDynamic(this, &UGA_Ultimate::OnMontageFinished);
-	PlayTask->OnInterrupted.AddDynamic(this, &UGA_Ultimate::OnMontageFinished);
-	PlayTask->OnCancelled.AddDynamic(this, &UGA_Ultimate::OnMontageFinished);
-	PlayTask->ReadyForActivation();
+	if (UltimateMontage)
+	{
+		UAbilityTask_PlayMontageAndWait* PlayTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this, TEXT("UltTask"), UltimateMontage, 1.0f, TEXT("Dash"));
+		if (PlayTask)
+		{
+			PlayTask->OnCompleted.AddDynamic(this, &UGA_Ultimate::OnMontageFinished);
+			PlayTask->OnInterrupted.AddDynamic(this, &UGA_Ultimate::OnMontageFinished);
+			PlayTask->OnCancelled.AddDynamic(this, &UGA_Ultimate::OnMontageFinished);
+			PlayTask->ReadyForActivation();
+		}
+	}
 }
 
 void UGA_Ultimate::OnHitEventReceived(FGameplayEventData Payload)
 {
-	// 노티파이가 올 때마다 물리 판정 실행
 	ProcessPhysicalHit();
 }
 
 void UGA_Ultimate::OnMontageFinished()
 {
-	UE_LOG(LogTemp, Log, TEXT("Ultimate Montage Finished. Ending Ability..."));
-
-	// EndAbility를 호출해야 캐릭터의 State.Lock 태그가 제거되고 다시 움직일 수 있습니다.
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
@@ -66,7 +76,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 		return;
 	}
 
-	// --- 물리 판정 로직 (기존 박스 트레이스 동일) ---
+	// --- 물리 판정 로직 ---
 	FVector AvatarLocation = MyAvatar->GetActorLocation();
 	FRotator AvatarRotation = MyAvatar->GetActorRotation();
 	FVector Forward = MyAvatar->GetActorForwardVector();
@@ -82,6 +92,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(MyAvatar);
 	FCollisionShape BoxShape = FCollisionShape::MakeBox(BoxHalfExtent);
+
 	bool bOverlapHit = GetWorld()->OverlapMultiByChannel(OverlapResults, BoxCenter, AvatarRotation.Quaternion(),
 	                                                     ECC_Pawn, BoxShape, QueryParams);
 
@@ -92,14 +103,16 @@ void UGA_Ultimate::ProcessPhysicalHit()
 	{
 		for (const FOverlapResult& Result : OverlapResults)
 		{
-			AActor* OverlappedActor = Result.GetActor();
-			if (OverlappedActor && OverlappedActor->IsA<APawn>())
+			if (AActor* OverlappedActor = Result.GetActor())
 			{
-				float DistanceSq = FVector::DistSquared(AvatarLocation, OverlappedActor->GetActorLocation());
-				if (DistanceSq < ClosestDistanceSq)
+				if (OverlappedActor->IsA<APawn>())
 				{
-					ClosestDistanceSq = DistanceSq;
-					ClosestTarget = OverlappedActor;
+					float DistanceSq = FVector::DistSquared(AvatarLocation, OverlappedActor->GetActorLocation());
+					if (DistanceSq < ClosestDistanceSq)
+					{
+						ClosestDistanceSq = DistanceSq;
+						ClosestTarget = OverlappedActor;
+					}
 				}
 			}
 		}
@@ -110,7 +123,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 	{
 		CurrentHitCount++;
 
-		// [1타 적중 시] 
+		// [1타 적중 시] 대상을 포착하고 시네마틱 모드 진입
 		if (CurrentHitCount == 1 && !bFirstHitSuccess)
 		{
 			bFirstHitSuccess = true;
@@ -122,74 +135,79 @@ void UGA_Ultimate::ProcessPhysicalHit()
 
 			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.3f);
 
-			// 타겟을 내 정면 300 거리에 강제 고정 (Attach)
 			GrabbedTarget = ClosestTarget;
-
-			// 1. 대상을 내 캐릭터에 부착시킵니다.
 			GrabbedTarget->AttachToComponent(MyAvatar->GetRootComponent(),
 			                                 FAttachmentTransformRules::KeepWorldTransform);
-
-			// 2. 내 정면(X축) 300, 좌우(Y) 0, 높이(Z) 0으로 위치를 고정합니다.
 			GrabbedTarget->SetActorRelativeLocation(FVector(100.0f, 0.0f, 0.0f));
 
 			MontageJumpToSection(TEXT("Cinematic_Combo"));
 		}
 
-		// --- Gameplay Cue 및 사운드 ---
+		// --- Gameplay Cue ---
 		FGameplayCueParameters HitParams;
 		HitParams.Instigator = MyAvatar;
 		HitParams.Location = ClosestTarget->GetActorLocation();
 
-		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Hit")), HitParams);
-		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.CameraShake.Hit")),
-		                          HitParams);
-
-		// 🌟 [막타 판정] Dash(1) + Combo(3) = 총 4타가 막타
-		bool bIsFinisher = (CurrentHitCount == 4);
-
-		FGameplayTag HitSFXTag = bIsFinisher
-			                         ? FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Attack.Large"))
-			                         : FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Attack.Small"));
-		MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
-
-		// [막타 전용 연출: Flash + CameraShake]
-		if (bIsFinisher)
+		if (HitVFXCueTag.IsValid())
 		{
-			//MyASC->ExecuteGameplayCue(UltimateFlashTag, HitParams);
+			MyASC->ExecuteGameplayCue(HitVFXCueTag, HitParams);
+		}
+		if (HitCameraShakeCueTag.IsValid())
+		{
+			MyASC->ExecuteGameplayCue(HitCameraShakeCueTag, HitParams);
 		}
 
-		// --- 대미지 적용 ---
-		AGasCharacterBase* TargetCharacter = Cast<AGasCharacterBase>(ClosestTarget);
-		if (TargetCharacter && DamageEffectClass)
+		bool bIsFinisher = (CurrentHitCount >= 4);
+
+		FGameplayTag HitSFXTag = bIsFinisher ? HitSFXLargeCueTag : HitSFXSmallCueTag;
+		if (HitSFXTag.IsValid())
 		{
+			MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
+		}
+
+		// --- 🌟 대미지 적용 (Data Asset 연동) ---
+		AGasCharacterBase* TargetCharacter = Cast<AGasCharacterBase>(ClosestTarget);
+		if (TargetCharacter && BaseDamageEffectClass)
+		{
+			FFuriSkillData SkillData;
+			bool bHasData = GetCurrentSkillData(SkillData);
+
 			FFuriDamageInfo DamageInfo;
-			DamageInfo.Amount = bIsFinisher ? -100.f : 0.f; // 4타 대미지 강화
+			if (bHasData)
+			{
+				DamageInfo = SkillData.DamageInfo;
+			}
+			else
+			{
+				DamageInfo.Amount = 100.f; // 안전장치 기본값
+			}
+
+			// 연타 중에는 대미지 0, 막타에만 Data Asset의 전체 대미지 부여!
+			DamageInfo.Amount = bIsFinisher ? DamageInfo.Amount : 0.f;
 			DamageInfo.DamageType = EFuriDamageType::Melee;
 			DamageInfo.DamageResponse = bIsFinisher ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
-
-			DamageInfo.bCanBeParried = (CurrentHitCount < 4);
+			DamageInfo.bCanBeParried = false;
 			DamageInfo.bCanBeBlocked = false;
 			DamageInfo.bShouldForceInterrupt = bIsFinisher;
 
-			FGameplayEffectContextHandle ContextHandle = FGameplayEffectContextHandle(
-				new FFuriGameplayEffectContext());
+			FGameplayEffectContextHandle ContextHandle = FGameplayEffectContextHandle(new FFuriGameplayEffectContext());
 			ContextHandle.AddInstigator(MyAvatar, MyAvatar);
 
-			FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
-			if (FuriContext)
+			if (FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle))
 			{
 				FuriContext->SetDamageInfo(DamageInfo);
 			}
 
-			FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, ContextHandle);
+			FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(BaseDamageEffectClass, 1.0f, ContextHandle);
 
 			if (SpecHandle.IsValid())
 			{
 				SpecHandle.Data.Get()->SetSetByCallerMagnitude(
-					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), DamageInfo.Amount);
+					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), -DamageInfo.Amount);
 
-				// 타겟에게 GE 적용 (AttributeSet에서 리액션 처리)
-				TargetCharacter->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+				// 🌟 자해 버그 수정: ToTarget 사용!
+				MyASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(),
+				                                       TargetCharacter->GetAbilitySystemComponent());
 			}
 		}
 	}
@@ -209,14 +227,10 @@ void UGA_Ultimate::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGa
 		PC->SetCinematicMode(false, nullptr);
 	}
 
-	// =========================================================
-	// 타겟 부착 해제 (Detach)
-	// =========================================================
 	if (GrabbedTarget)
 	{
-		// 부착을 해제하고, 월드상의 현재 위치를 그대로 유지시킵니다.
 		GrabbedTarget->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		GrabbedTarget = nullptr; // 변수 초기화
+		GrabbedTarget = nullptr;
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

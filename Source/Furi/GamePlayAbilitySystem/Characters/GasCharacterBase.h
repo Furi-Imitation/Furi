@@ -8,6 +8,7 @@
 #include "AbilitySystemComponent.h"
 #include "GasCharacterBase.generated.h"
 
+class UFuriSkillDataAsset;
 struct FFuriDamageInfo;
 class USpringArmComponent;
 class UCameraComponent;
@@ -107,4 +108,14 @@ protected:
 
 	void ExecuteHitStop(float Duration, float TimeScale = 0.01f);
 	void StopHitStop();
+	
+protected:
+	// 🌟 이 캐릭터의 스킬 UI 데이터를 담은 에셋 (에디터에서 할당)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Data|Skill")
+	UFuriSkillDataAsset* SkillUIData;
+
+public:
+	// UI(HUD)가 이 캐릭터의 스킬 데이터를 가져갈 수 있도록 열어주는 Getter 함수
+	UFUNCTION(BlueprintCallable, Category = "Data|Skill")
+	UFuriSkillDataAsset* GetSkillUIData() const { return SkillUIData; }
 };

@@ -1,18 +1,21 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "FuriGameplayAbilityBase.h"
 #include "Abilities/GameplayAbility.h"
 #include "GA_Dash.generated.h"
 
 UCLASS()
-class FURI_API UGA_Dash : public UGameplayAbility
+class FURI_API UGA_Dash : public UFuriGameplayAbilityBase
 {
 	GENERATED_BODY()
 
 public:
 	UGA_Dash();
 
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	                             const FGameplayAbilityActivationInfo ActivationInfo,
+	                             const FGameplayEventData* TriggerEventData) override;
 
 protected:
 	// 대시 힘 (수치가 높을수록 멀리 이동)
@@ -32,11 +35,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash|Cues")
 	FGameplayTag DashVisualCueTag;
-	
+
 	UFUNCTION()
 	void OnDashFinished();
-	
-protected:
+
 	// EndAbility 오버라이드 선언
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	                        const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+	                        bool bWasCancelled) override;
 };

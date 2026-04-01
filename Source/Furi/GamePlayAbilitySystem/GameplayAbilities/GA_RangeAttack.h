@@ -1,43 +1,50 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "FuriGameplayAbilityBase.h"
 #include "Abilities/GameplayAbility.h"
 #include "GA_RangeAttack.generated.h"
 
 UCLASS()
-class FURI_API UGA_RangeAttack : public UGameplayAbility
+class FURI_API UGA_RangeAttack : public UFuriGameplayAbilityBase
 {
 	GENERATED_BODY()
 
 public:
 	UGA_RangeAttack();
 
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
-	
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	                             const FGameplayAbilityActivationInfo ActivationInfo,
+	                             const FGameplayEventData* TriggerEventData) override;
+
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	                        const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+	                        bool bWasCancelled) override;
+
 	UFUNCTION()
 	void OnMontageFinished();
-	// 애님 노티파이(Event)를 받았을 때 실행될 함수
+
 	UFUNCTION()
 	void OnHitEventReceived(FGameplayEventData Payload);
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
 	UAnimMontage* RangeAttackMontage;
 
-	UPROPERTY(EditAnywhere, Category = "Combat|Range")
-	TSubclassOf<UGameplayEffect> DamageEffectClass;
+	// 🌟 다른 공격 어빌리티와 이름을 맞추고 공용 데미지 GE를 사용합니다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
+	TSubclassOf<UGameplayEffect> BaseDamageEffectClass;
 
-	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Range")
 	float AttackRadius = 500.0f;
 
-	// 노티파이에서 던져줄 태그
-	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+	// 🌟 C++에서 하드코딩하지 않고, 블루프린트 디테일 패널에서 지정할 태그들
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Cues")
 	FGameplayTag HitEventTag;
 
-	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Cues")
 	FGameplayTag StartCueTag;
-	
-	UPROPERTY(EditAnywhere, Category = "Combat|Range")
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Cues")
 	FGameplayTag HitCueTag;
 };
