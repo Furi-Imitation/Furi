@@ -23,7 +23,7 @@ struct FFuriSkillData
 	FText SkillName;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "1. UI")
-	UTexture2D* SkillIcon;
+	UTexture2D* SkillIcon = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "1. UI")
 	FText SkillDescription;
