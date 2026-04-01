@@ -34,21 +34,16 @@ struct FFuriSkillData
 	// 이 스킬을 실행할 실제 어빌리티 클래스 (GA)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "2. System")
 	TSubclassOf<UGameplayAbility> AbilityClass;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "2. System")
 	float StaminaCost = 0.f;
 
 	// UI에서 쿨타임을 추적하기 위한 태그 (예: Cooldown.Skill.Ultimate)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "2. System")
 	FGameplayTag CooldownTag;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "2. System")
 	float CooldownDuration = 0.f;
-	
-	// 전투 및 애니메이션 정보
-	// 이 스킬을 사용할 때 재생할 몽타주
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "3. Combat")
-	UAnimMontage* SkillMontage;
 
 	// 🌟 작성해주신 완벽한 대미지 정보 구조체 삽입!
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "3. Combat")
@@ -61,7 +56,6 @@ class FURI_API UFuriSkillDataAsset : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	// 🌟 스킬 태그(예: Skill.Melee.Combo1)를 키값으로 하여 스킬 데이터를 저장하는 Map
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Skills")
 	TMap<FGameplayTag, FFuriSkillData> SkillDataMap;
 
