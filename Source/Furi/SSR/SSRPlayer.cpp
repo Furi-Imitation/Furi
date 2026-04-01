@@ -95,6 +95,11 @@ void ASSRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 				{
 					// 키를 눌렀을 때 AbilityInputTagPressed 호출
 					PlayerInput->BindAction(Config.InputAction, ETriggerEvent::Started, this, &ASSRPlayer::AbilityInputTagPressed, Config.InputTag);
+					// 2. 키를 떼었을 때 (Completed) -> 이게 있어야 WaitInputRelease가 작동합니다!
+					PlayerInput->BindAction(Config.InputAction, ETriggerEvent::Completed, this, &ASSRPlayer::AbilityInputTagReleased, Config.InputTag);
+                
+					// // 참고: 트리거 설정에 따라 Canceled도 추가해야 할 수 있습니다.
+					// PlayerInput->BindAction(Config.InputAction, ETriggerEvent::Canceled, this, &ASSRPlayer::AbilityInputTagReleased, Config.InputTag);
 				}
 			}
 		}
@@ -239,5 +244,27 @@ void ASSRPlayer::AbilityInputTagPressed(FGameplayTag InputTag)
 	{
 		AbilitySystemComponent->TryActivateAbilitiesByTag(FGameplayTagContainer(InputTag));
 		UE_LOG(LogTemp, Log, TEXT("No Active Ability. Trying to Activate New."));
+	}
+}
+
+void ASSRPlayer::AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	// 로그를 찍어 실제 버튼을 뗄 때 호출되는지 확인하세요!
+	UE_LOG(LogTemp, Warning, TEXT("AbilityInputTagReleased %s"), *InputTag.ToString());
+
+	if (!AbilitySystemComponent || !InputTag.IsValid()) return;
+
+	// 현재 활성화된 어빌리티들 중 해당 태그를 가진 녀석에게 "입력 해제" 신호 전달
+	for (FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->GetAssetTags().HasTag(InputTag))
+		{
+			if (Spec.IsActive())
+			{
+				// [핵심] 이 함수가 호출되어야 WaitInputRelease 태스크가 완료됩니다!
+				AbilitySystemComponent->AbilitySpecInputReleased(Spec);
+				UE_LOG(LogTemp, Log, TEXT("Sent InputReleased to Active Ability."));
+			}
+		}
 	}
 }
