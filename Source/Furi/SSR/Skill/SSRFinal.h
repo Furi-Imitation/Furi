@@ -1,14 +1,10 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "GameplayTagContainer.h"
 #include "SSRFinal.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class FURI_API USSRFinal : public UGameplayAbility
 {
@@ -18,48 +14,50 @@ public:
 	USSRFinal();
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
-	// 🌟 사용될 필살기 몽타주 (에디터에서 SSR_AM_FinalAttack 할당)
-	UPROPERTY(EditAnywhere, Category = "Abilities")
-	TObjectPtr<UAnimMontage> FinalAttackMontage;
-	
-	// 데미지 이펙트
-	UPROPERTY(EditAnywhere, Category = "Abilities | Damage")
-	TSubclassOf<class UGameplayEffect> DamageEffectClass;
+	/** 몽타주 노티파이에서 쏠 통합 태그 (예: Event.SSR.Final.Hit) */
+	UFUNCTION()
+	void OnHitEventReceived(FGameplayEventData Payload);
 
-	// 🌟 적중 성공 시 실행될 함수
-	UFUNCTION()
-	void OnHitSuccess(FGameplayEventData Payload);
-
-	// 콤보 도중 데미지를 입히기 위해 호출할 함수
-	UFUNCTION()
-	void ApplyDamageToGrabbedTarget(float InDamageAmount);
-	// 데미지 값 구현
-	
-	UFUNCTION()
-	void OnDamageNotifyReceived(FGameplayEventData Payload);
-
-	// 🌟 공격 판정 시작 노티파이를 받았을 때
-	UFUNCTION()
-	void OnActivateCollision(FGameplayEventData Payload);
-
-	// 🌟 적중 실패(Trigger 섹션 종료) 시 실행될 함수
-	UFUNCTION()
-	void OnAttackFailed(FGameplayEventData Payload);
-	
-	// 🌟 몽타주가 끝났을 때 어빌리티를 종료시키기 위한 함수
 	UFUNCTION()
 	void OnMontageFinished();
 
+	/** 물리 판정 및 데미지 로직 통합 처리 함수 */
+	void ProcessPhysicalHit();
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Animation")
+	TObjectPtr<UAnimMontage> UltimateMontage;
+
+	/** 물리 판정 범위 설정 */
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Collision")
+	float AttackRange = 250.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Collision")
+	float AttackBoxHalfWidth = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Collision")
+	float AttackBoxHalfHeight = 100.f;
+
+	/** 몽타주에서 쏠 이벤트 태그 */
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Tags")
+	FGameplayTag HitEventTag;
+
+	/** 적용할 데미지 이펙트 */
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Damage")
+	TSubclassOf<class UGameplayEffect> DamageEffectClass;
+
 private:
-	// 중복 실행 방지 및 상태 체크용
-	bool bHitConfirmed = false;
-	
-	int CurrentHitCount = 0;
-	
+	bool bFirstHitSuccess = false;
+	int32 CurrentHitCount = 0;
+
 	UPROPERTY()
 	TObjectPtr<AActor> GrabbedTarget;
+
+	UPROPERTY()
+	TObjectPtr<class ASSRPlayer> CachedPlayer;
+
+	/** 데미지 적용 내부 함수 */
+	void ApplyDamageToTarget(float Amount);
 };
