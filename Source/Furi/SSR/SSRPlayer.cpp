@@ -2,12 +2,15 @@
 
 
 #include "SSRPlayer.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "SSRSword.h"
 
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Components/BoxComponent.h"
 #include "Furi/Weapons/WeaponDataAsset.h"
 #include "Furi/Weapons/WeaponManagerComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -26,6 +29,11 @@ ASSRPlayer::ASSRPlayer()
 	bNetUseOwnerRelevancy = true;
 	
 	WeaponManager = CreateDefaultSubobject<UWeaponManagerComponent>(TEXT("WeaponManger"));
+	
+	// 필살기 충돌체 생성 및 설정
+	UltimateHitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("UltimateHitBox"));
+	UltimateHitBox->SetupAttachment(GetMesh(), FName("WeaponSocket")); // 무기 위치에 부착 권장
+	UltimateHitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	
 }
 
@@ -51,6 +59,7 @@ void ASSRPlayer::BeginPlay()
 	{
 		WeaponManager->EquipWeapon(DefaultWeaponData->WeaponConfig);
 	}
+	UltimateHitBox->OnComponentBeginOverlap.AddDynamic(this, &ASSRPlayer::OnUltimateOverlap);
 }
 
 void ASSRPlayer::Tick(float DeltaTime)
@@ -266,5 +275,39 @@ void ASSRPlayer::AbilityInputTagReleased(FGameplayTag InputTag)
 				UE_LOG(LogTemp, Log, TEXT("Sent InputReleased to Active Ability."));
 			}
 		}
+	}
+}
+
+void ASSRPlayer::SetUltimateCollisionEnabled(bool bEnable)
+{
+	// 🌟 안전장치 추가: 박스가 유효할 때만 실행
+	if (UltimateHitBox)
+	{
+		UltimateHitBox->SetCollisionEnabled(bEnable ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SSRPlayer: UltimateHitBox is NULL! Check if it's created in Constructor."));
+	}
+}
+
+void ASSRPlayer::SetCameraZoom(bool bZoomIn)
+{
+}
+
+void ASSRPlayer::OnUltimateOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor && OtherActor != this)
+	{
+		// 1. 중복 방지를 위해 충돌체 즉시 끄기
+		SetUltimateCollisionEnabled(false);
+
+		// 2. 어빌리티에게 "적중 성공" 이벤트 전송 (Payload에 타겟 정보 포함)
+		FGameplayEventData Payload;
+		Payload.Target = OtherActor;
+		Payload.Instigator = this;
+        
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, FGameplayTag::RequestGameplayTag(FName("Event.SSRFinal.HitSuccess")), Payload);
 	}
 }
