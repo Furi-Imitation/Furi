@@ -159,12 +159,6 @@ void UGA_Ultimate::ProcessPhysicalHit()
 
 		bool bIsFinisher = (CurrentHitCount >= 4);
 
-		FGameplayTag HitSFXTag = bIsFinisher ? HitSFXLargeCueTag : HitSFXSmallCueTag;
-		if (HitSFXTag.IsValid())
-		{
-			MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
-		}
-
 		// --- 🌟 대미지 적용 (Data Asset 연동) ---
 		AGasCharacterBase* TargetCharacter = Cast<AGasCharacterBase>(ClosestTarget);
 		if (TargetCharacter && BaseDamageEffectClass)
@@ -179,11 +173,11 @@ void UGA_Ultimate::ProcessPhysicalHit()
 			}
 			else
 			{
-				DamageInfo.Amount = 100.f; // 안전장치 기본값
+				DamageInfo.Amount = 10.f; // 안전장치 기본값
 			}
 
 			// 연타 중에는 대미지 0, 막타에만 Data Asset의 전체 대미지 부여!
-			DamageInfo.Amount = bIsFinisher ? DamageInfo.Amount : 0.f;
+			DamageInfo.Amount = bIsFinisher ? DamageInfo.Amount * 10 : DamageInfo.Amount;
 			DamageInfo.DamageType = EFuriDamageType::Melee;
 			DamageInfo.DamageResponse = bIsFinisher ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
 			DamageInfo.bCanBeParried = false;
@@ -205,7 +199,6 @@ void UGA_Ultimate::ProcessPhysicalHit()
 				SpecHandle.Data.Get()->SetSetByCallerMagnitude(
 					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), -DamageInfo.Amount);
 
-				// 🌟 자해 버그 수정: ToTarget 사용!
 				MyASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(),
 				                                       TargetCharacter->GetAbilitySystemComponent());
 			}

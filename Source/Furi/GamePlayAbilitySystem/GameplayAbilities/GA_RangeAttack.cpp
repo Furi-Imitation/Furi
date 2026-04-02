@@ -134,6 +134,14 @@ void UGA_RangeAttack::OnHitEventReceived(FGameplayEventData Payload)
 					FinalDamageInfo.bShouldForceInterrupt = true;
 				}
 
+				if (AttackVFXCueTag.IsValid())
+				{
+					FGameplayCueParameters SwingParams;
+					SwingParams.Instigator = TargetCharacter;
+					SwingParams.TargetAttachComponent = TargetCharacter->GetMesh();
+					MyASC->ExecuteGameplayCue(AttackVFXCueTag, SwingParams);
+				}
+
 				// GE Spec 작성 및 적용
 				FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
 				ContextHandle.AddInstigator(MyAvatar, MyAvatar);

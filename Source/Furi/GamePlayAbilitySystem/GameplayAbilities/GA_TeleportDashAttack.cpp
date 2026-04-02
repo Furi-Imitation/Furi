@@ -68,6 +68,7 @@ void UGA_TeleportDashAttack::PrepareNextStrike()
 		return;
 	}
 
+
 	if (VanishCueTag.IsValid())
 	{
 		GetAbilitySystemComponentFromActorInfo()->AddGameplayCue(VanishCueTag);
@@ -104,14 +105,6 @@ void UGA_TeleportDashAttack::OnStrikeDelayFinished()
 		MyASC->RemoveGameplayCue(VanishCueTag);
 	}
 
-	// 🌟 하드코딩 대신 블루프린트에서 설정한 태그 사용
-	if (AttackVFXCueTag.IsValid())
-	{
-		FGameplayCueParameters SwingParams;
-		SwingParams.Instigator = MyChar;
-		SwingParams.TargetAttachComponent = MyChar->GetMesh();
-		MyASC->ExecuteGameplayCue(AttackVFXCueTag, SwingParams);
-	}
 
 	FVector TeleportLoc;
 	FRotator TeleportRot;
@@ -199,6 +192,15 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
 						HitParams.EffectCauser = MyAvatar;
 						HitParams.Location = TargetChar->GetActorLocation();
 						MyASC->ExecuteGameplayCue(CameraShakeCueTag, HitParams);
+					}
+
+					// 🌟 하드코딩 대신 블루프린트에서 설정한 태그 사용
+					if (AttackVFXCueTag.IsValid())
+					{
+						FGameplayCueParameters SwingParams;
+						SwingParams.Instigator = TargetChar;
+						SwingParams.TargetAttachComponent = TargetChar->GetMesh();
+						MyASC->ExecuteGameplayCue(AttackVFXCueTag, SwingParams);
 					}
 
 					// 🌟 Data Asset에서 스킬 데이터 로드

@@ -147,15 +147,6 @@ void UGA_Attack::PerformHitCheck()
 		}
 	}
 
-	// 허공 타격 이펙트 (큐)
-	FGameplayCueParameters SwingParams;
-	SwingParams.Instigator = MyAvatar;
-	SwingParams.TargetAttachComponent = MyCharacter->GetMesh();
-	FGameplayTag AttackVFXTag = (ActualComboIndex == 3)
-		                            ? FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Attack.Large"))
-		                            : FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Attack.Small"));
-	MyASC->ExecuteGameplayCue(AttackVFXTag, SwingParams);
-
 	// 충돌 판정 계산
 	FVector AvatarLocation = MyAvatar->GetActorLocation();
 	FRotator AvatarRotation = MyAvatar->GetActorRotation();
