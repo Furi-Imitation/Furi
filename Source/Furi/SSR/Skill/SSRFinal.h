@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayTagContainer.h"
 #include "SSRFinal.generated.h"
@@ -29,6 +31,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate | Animation")
 	TObjectPtr<UAnimMontage> UltimateMontage;
+	
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Effects")
+	TObjectPtr<UNiagaraSystem> GrabEffect; // 처음 잡았을 때 이펙트
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate | Effects")
+	TObjectPtr<UNiagaraSystem> HitComboEffect; // 콤보 타격 시 이펙트
 
 	/** 물리 판정 범위 설정 */
 	UPROPERTY(EditAnywhere, Category = "Ultimate | Collision")

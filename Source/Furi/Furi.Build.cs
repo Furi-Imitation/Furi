@@ -10,7 +10,7 @@ public class Furi : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { 
 			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
-			"GameplayAbilities", "GameplayTags", "GameplayTasks" 
+			"GameplayAbilities", "GameplayTags", "GameplayTasks", "Niagara"
 		});
 
 		// Uncomment if you are using Slate UI

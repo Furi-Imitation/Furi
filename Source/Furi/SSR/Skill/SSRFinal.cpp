@@ -69,6 +69,11 @@ void USSRFinal::ProcessPhysicalHit()
             CurrentHitCount++;
             float DamageToApply = (CurrentHitCount >= 5) ? -30.0f : -10.0f;
             ApplyDamageToTarget(DamageToApply);
+            if (HitComboEffect)
+            {
+                // 타겟의 위치에 이펙트 소환
+                UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitComboEffect, GrabbedTarget->GetActorLocation());
+            }
             return; 
         }
         return;
@@ -109,11 +114,18 @@ void USSRFinal::ProcessPhysicalHit()
             GrabbedTarget->SetActorRelativeLocation(FVector(120.f, 0.f, 50.f));
             GrabbedTarget->SetActorRelativeRotation(FRotator(0.f, 180.f, 0.f));
 
+            
             // 캐릭터 이동 컴포넌트 제어 (중복 선언 제거됨)
             TargetChar->GetCharacterMovement()->DisableMovement();
             TargetChar->GetCharacterMovement()->StopMovementImmediately();
 
             CachedPlayer->SetCameraZoom(true);
+            
+            if (GrabEffect)
+            {
+                // 타겟에게 이펙트를 부착 (적을 따라다님)
+                UNiagaraFunctionLibrary::SpawnSystemAttached(GrabEffect, GrabbedTarget->GetRootComponent(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+            }
             
             UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
             if (MyASC) MyASC->CurrentMontageJumpToSection(FName("Combo"));
