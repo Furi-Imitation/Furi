@@ -57,12 +57,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Combat|Tags")
 	FGameplayTag HitCameraShakeCueTag;
 
-	UPROPERTY(EditAnywhere, Category = "Combat|Tags")
-	FGameplayTag HitSFXSmallCueTag;
-
-	UPROPERTY(EditAnywhere, Category = "Combat|Tags")
-	FGameplayTag HitSFXLargeCueTag;
-
 	// 🌟 궁극기 도중 내 앞에 고정해둘 타겟
 	UPROPERTY()
 	TObjectPtr<AActor> GrabbedTarget;

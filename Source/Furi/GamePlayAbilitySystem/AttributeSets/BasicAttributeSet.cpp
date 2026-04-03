@@ -55,6 +55,7 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectM
 			if (TargetCharacter)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[BasicAttributeSet] %s is Dead!"), *TargetCharacter->GetName());
+				TargetCharacter->Die();
 			}
 		}
 		else

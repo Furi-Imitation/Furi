@@ -300,3 +300,55 @@ void AGasCharacterBase::StopHitStop()
 		HitStopTickerHandle.Reset();
 	}
 }
+
+// 서버(또는 로컬)에서 사망 판정이 났을 때 실행되는 메인 함수
+void AGasCharacterBase::Die()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(FName("State.Dead"));
+
+	// 1. 이미 죽어있다면 무시 (중복 사망 방지)
+	if (AbilitySystemComponent->HasMatchingGameplayTag(DeadTag))
+	{
+		return;
+	}
+
+	// 2. 사망 태그 부여 (HandleDamageResponse의 최상단에서 데미지를 거부하게 됨)
+	AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+
+	// 3. 현재 시전 중이거나 유지 중인 모든 스킬(어빌리티) 강제 종료
+	AbilitySystemComponent->CancelAllAbilities();
+
+	// 4. 사망 연출 및 물리 처리를 모든 사람의 화면(클라이언트)에 방송
+	Multicast_Die();
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] 사망했습니다!"), *GetName());
+}
+
+// 모든 클라이언트의 화면에서 동일하게 처리되는 시각적/물리적 사망 처리
+void AGasCharacterBase::Multicast_Die_Implementation()
+{
+	// 1. 캡슐 콜리전 비활성화 (시체가 길을 막거나 칼을 막아버리는 현상 방지)
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 2. 이동 완전 차단
+	GetCharacterMovement()->DisableMovement();
+	GetCharacterMovement()->StopMovementImmediately();
+
+	// 3. 사망 몽타주 재생 (없으면 래그돌로 전환)
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage);
+	}
+	else
+	{
+		//사망 몽타주가 세팅되지 않았을 경우, 자연스럽게 물리 엔진에 맡겨 쓰러지게(Ragdoll) 만듭니다.
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
+		GetMesh()->SetSimulatePhysics(true);
+	}
+}

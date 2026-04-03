@@ -47,4 +47,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Cues")
 	FGameplayTag HitCueTag;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Tags")
+	FGameplayTag AttackVFXCueTag;
 };

@@ -157,13 +157,17 @@ void UGA_Ultimate::ProcessPhysicalHit()
 			MyASC->ExecuteGameplayCue(HitCameraShakeCueTag, HitParams);
 		}
 
-		bool bIsFinisher = (CurrentHitCount >= 4);
+		FGameplayTag HitSFXTag = (CurrentHitCount == 4)
+			                         ? FGameplayTag::RequestGameplayTag(
+				                         FName("GameplayCue.P1.SFX.Ultimate"))
+			                         : (CurrentHitCount == 1)
+			                         ? FGameplayTag::RequestGameplayTag(
+				                         FName("GameplayCue.P1.SFX.Attack.Small"))
+			                         : FGameplayTag::RequestGameplayTag(
+				                         FName("GameplayCue.P1.SFX.Attack.Large"));
+		MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
 
-		FGameplayTag HitSFXTag = bIsFinisher ? HitSFXLargeCueTag : HitSFXSmallCueTag;
-		if (HitSFXTag.IsValid())
-		{
-			MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
-		}
+		bool bIsFinisher = (CurrentHitCount >= 4);
 
 		// --- 🌟 대미지 적용 (Data Asset 연동) ---
 		AGasCharacterBase* TargetCharacter = Cast<AGasCharacterBase>(ClosestTarget);
@@ -179,11 +183,11 @@ void UGA_Ultimate::ProcessPhysicalHit()
 			}
 			else
 			{
-				DamageInfo.Amount = 100.f; // 안전장치 기본값
+				DamageInfo.Amount = 10.f; // 안전장치 기본값
 			}
 
 			// 연타 중에는 대미지 0, 막타에만 Data Asset의 전체 대미지 부여!
-			DamageInfo.Amount = bIsFinisher ? DamageInfo.Amount : 0.f;
+			DamageInfo.Amount = bIsFinisher ? DamageInfo.Amount * 10 : DamageInfo.Amount;
 			DamageInfo.DamageType = EFuriDamageType::Melee;
 			DamageInfo.DamageResponse = bIsFinisher ? EFuriDamageResponse::KnockBack : EFuriDamageResponse::HitReaction;
 			DamageInfo.bCanBeParried = false;
@@ -205,11 +209,19 @@ void UGA_Ultimate::ProcessPhysicalHit()
 				SpecHandle.Data.Get()->SetSetByCallerMagnitude(
 					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), -DamageInfo.Amount);
 
-				// 🌟 자해 버그 수정: ToTarget 사용!
 				MyASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(),
 				                                       TargetCharacter->GetAbilitySystemComponent());
 			}
 		}
+	}
+	else
+	{
+		FGameplayCueParameters HitParams;
+		HitParams.Instigator = MyAvatar;
+		HitParams.EffectCauser = MyAvatar;
+		HitParams.Location = MyAvatar->GetActorLocation();
+
+		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Swing")), HitParams);
 	}
 }
 

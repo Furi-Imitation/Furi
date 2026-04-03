@@ -147,15 +147,6 @@ void UGA_Attack::PerformHitCheck()
 		}
 	}
 
-	// 허공 타격 이펙트 (큐)
-	FGameplayCueParameters SwingParams;
-	SwingParams.Instigator = MyAvatar;
-	SwingParams.TargetAttachComponent = MyCharacter->GetMesh();
-	FGameplayTag AttackVFXTag = (ActualComboIndex == 3)
-		                            ? FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Attack.Large"))
-		                            : FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Attack.Small"));
-	MyASC->ExecuteGameplayCue(AttackVFXTag, SwingParams);
-
 	// 충돌 판정 계산
 	FVector AvatarLocation = MyAvatar->GetActorLocation();
 	FRotator AvatarRotation = MyAvatar->GetActorRotation();
@@ -265,7 +256,12 @@ void UGA_Attack::PerformHitCheck()
 	}
 	else
 	{
-		PlaySwingSound();
+		FGameplayCueParameters HitParams;
+		HitParams.Instigator = MyAvatar;
+		HitParams.EffectCauser = MyAvatar;
+		HitParams.Location = MyAvatar->GetActorLocation();
+
+		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Swing")), HitParams);
 	}
 }
 
@@ -314,13 +310,5 @@ void UGA_Attack::RotateTowardsClosestEnemy(AActor* MyAvatar, float SearchRadius)
 		TargetLocation.Z = AvatarLocation.Z;
 		FRotator LookAtRotation = FRotationMatrix::MakeFromX(TargetLocation - AvatarLocation).Rotator();
 		MyAvatar->SetActorRotation(LookAtRotation);
-	}
-}
-
-void UGA_Attack::PlaySwingSound()
-{
-	if (SwingSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, SwingSound, GetAvatarActorFromActorInfo()->GetActorLocation());
 	}
 }
