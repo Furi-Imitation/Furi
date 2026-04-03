@@ -112,4 +112,20 @@ protected:
 	// 게임 시작 시 자동으로 걸어줄 스테미나 재생 이펙트
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities|Effects")
 	TSubclassOf<class UGameplayEffect> StaminaRegenEffectClass;
+	
+public:
+	// 🌟 노티파이 혹은 어빌리티에서 호출할 충돌체 제어 함수
+	void SetUltimateCollisionEnabled(bool bEnable);
+
+	// 🌟 카메라 줌 조절 함수
+	void SetCameraZoom(bool bZoomIn);
+protected:
+
+	// 🌟 필살기 전용 충돌체 (Box Component)
+	UPROPERTY(VisibleAnywhere, Category = "Combat")
+	class UBoxComponent* UltimateHitBox;
+
+	// 🌟 충돌 시 실행될 함수
+	UFUNCTION()
+	void OnUltimateOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 };
