@@ -256,7 +256,12 @@ void UGA_Attack::PerformHitCheck()
 	}
 	else
 	{
-		PlaySwingSound();
+		FGameplayCueParameters HitParams;
+		HitParams.Instigator = MyAvatar;
+		HitParams.EffectCauser = MyAvatar;
+		HitParams.Location = MyAvatar->GetActorLocation();
+
+		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Swing")), HitParams);
 	}
 }
 
@@ -305,13 +310,5 @@ void UGA_Attack::RotateTowardsClosestEnemy(AActor* MyAvatar, float SearchRadius)
 		TargetLocation.Z = AvatarLocation.Z;
 		FRotator LookAtRotation = FRotationMatrix::MakeFromX(TargetLocation - AvatarLocation).Rotator();
 		MyAvatar->SetActorRotation(LookAtRotation);
-	}
-}
-
-void UGA_Attack::PlaySwingSound()
-{
-	if (SwingSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, SwingSound, GetAvatarActorFromActorInfo()->GetActorLocation());
 	}
 }

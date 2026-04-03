@@ -304,7 +304,10 @@ void AGasCharacterBase::StopHitStop()
 // 서버(또는 로컬)에서 사망 판정이 났을 때 실행되는 메인 함수
 void AGasCharacterBase::Die()
 {
-	if (!AbilitySystemComponent) return;
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
 
 	FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(FName("State.Dead"));
 

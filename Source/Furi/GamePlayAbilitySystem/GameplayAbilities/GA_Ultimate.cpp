@@ -157,6 +157,16 @@ void UGA_Ultimate::ProcessPhysicalHit()
 			MyASC->ExecuteGameplayCue(HitCameraShakeCueTag, HitParams);
 		}
 
+		FGameplayTag HitSFXTag = (CurrentHitCount == 4)
+			                         ? FGameplayTag::RequestGameplayTag(
+				                         FName("GameplayCue.P1.SFX.Ultimate"))
+			                         : (CurrentHitCount == 1)
+			                         ? FGameplayTag::RequestGameplayTag(
+				                         FName("GameplayCue.P1.SFX.Attack.Small"))
+			                         : FGameplayTag::RequestGameplayTag(
+				                         FName("GameplayCue.P1.SFX.Attack.Large"));
+		MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
+
 		bool bIsFinisher = (CurrentHitCount >= 4);
 
 		// --- 🌟 대미지 적용 (Data Asset 연동) ---
@@ -203,6 +213,15 @@ void UGA_Ultimate::ProcessPhysicalHit()
 				                                       TargetCharacter->GetAbilitySystemComponent());
 			}
 		}
+	}
+	else
+	{
+		FGameplayCueParameters HitParams;
+		HitParams.Instigator = MyAvatar;
+		HitParams.EffectCauser = MyAvatar;
+		HitParams.Location = MyAvatar->GetActorLocation();
+
+		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Swing")), HitParams);
 	}
 }
 

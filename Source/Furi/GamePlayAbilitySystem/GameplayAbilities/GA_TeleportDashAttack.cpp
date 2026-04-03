@@ -192,6 +192,13 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
 						HitParams.EffectCauser = MyAvatar;
 						HitParams.Location = TargetChar->GetActorLocation();
 						MyASC->ExecuteGameplayCue(CameraShakeCueTag, HitParams);
+
+						FGameplayTag HitSFXTag = (CurrentStrikeCount == 3)
+							                         ? FGameplayTag::RequestGameplayTag(
+								                         FName("GameplayCue.P1.SFX.Attack.Large"))
+							                         : FGameplayTag::RequestGameplayTag(
+								                         FName("GameplayCue.P1.SFX.Attack.Small"));
+						MyASC->ExecuteGameplayCue(HitSFXTag, HitParams);
 					}
 
 					// 🌟 하드코딩 대신 블루프린트에서 설정한 태그 사용
@@ -261,6 +268,15 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
 				}
 			}
 		}
+	}
+	else
+	{
+		FGameplayCueParameters HitParams;
+		HitParams.Instigator = MyAvatar;
+		HitParams.EffectCauser = MyAvatar;
+		HitParams.Location = MyAvatar->GetActorLocation();
+
+		MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Swing")), HitParams);
 	}
 }
 

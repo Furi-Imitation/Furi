@@ -60,10 +60,4 @@ private:
 
 	UPROPERTY()
 	UAbilityTask_PlayMontageAndWait* MontageTask;
-
-protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
-	TObjectPtr<USoundBase> SwingSound;
-
-	void PlaySwingSound();
 };

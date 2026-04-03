@@ -41,15 +41,17 @@ void UGA_Block::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 				*SpecHandle.Data.Get());
 		}
 	}
-
+	FGameplayCueParameters Params;
+	Params.Location = ActorInfo->AvatarActor->GetActorLocation();
+	Params.Instigator = ActorInfo->AvatarActor.Get();
 	// 2. 방어 시작 Gameplay Cue (이펙트 & 사운드)
 	if (BlockStartCueTag.IsValid())
 	{
-		FGameplayCueParameters Params;
-		Params.Location = ActorInfo->AvatarActor->GetActorLocation();
-		Params.Instigator = ActorInfo->AvatarActor.Get();
 		ActorInfo->AbilitySystemComponent->ExecuteGameplayCue(BlockStartCueTag, Params);
 	}
+
+	ActorInfo->AbilitySystemComponent->ExecuteGameplayCue(
+		FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.SFX.Block")), Params);
 
 	// 3. 방어 애니메이션 재생
 	if (BlockMontage)
