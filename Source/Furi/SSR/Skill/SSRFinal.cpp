@@ -3,8 +3,10 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Furi/SSR/SSRPlayer.h" 
+#include "Furi/FuriPlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h" // BoxTrace를 사용하기 위해 필수
 
 USSRFinal::USSRFinal()
@@ -106,12 +108,21 @@ void USSRFinal::ProcessPhysicalHit()
         {
             bFirstHitSuccess = true;
             GrabbedTarget = TargetChar;
-
+            
+            // 필살기 적중시 카메라 확대 구도
+            if (AFuriPlayerController* pc = Cast<AFuriPlayerController>(CurrentActorInfo->PlayerController.Get()))
+            {
+                pc->SetCinematicMode(true, TargetChar);
+            }
+            
+            // 슬로우 모션
+            UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.3f);
+            
             // 2. 박제 로직 (위에서 만든 TargetChar 변수를 그대로 사용)
             GrabbedTarget->AttachToComponent(CachedPlayer->GetRootComponent(), 
                 FAttachmentTransformRules::SnapToTargetNotIncludingScale);
             
-            GrabbedTarget->SetActorRelativeLocation(FVector(120.f, 0.f, 50.f));
+            GrabbedTarget->SetActorRelativeLocation(FVector(120.f, 0.f, 0.f));
             GrabbedTarget->SetActorRelativeRotation(FRotator(0.f, 180.f, 0.f));
 
             
@@ -178,6 +189,18 @@ void USSRFinal::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
             TargetChar->GetCharacterMovement()->SetDefaultMovementMode();
         }
     }
+    
+    // 필살기 종류 후 카메라 원상복귀
+    if (GetWorld())
+    {
+        UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
+    }
+    
+    if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(CurrentActorInfo->PlayerController.Get()))
+    {
+        PC->SetCinematicMode(false, nullptr);
+    }
+    
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
