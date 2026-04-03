@@ -116,7 +116,7 @@ void USSRFinal::ProcessPhysicalHit()
             }
             
             // 슬로우 모션
-            UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.3f);
+            UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.7f);
             
             // 2. 박제 로직 (위에서 만든 TargetChar 변수를 그대로 사용)
             GrabbedTarget->AttachToComponent(CachedPlayer->GetRootComponent(), 
