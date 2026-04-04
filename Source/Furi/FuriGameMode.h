@@ -25,4 +25,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Classes")
 	TSubclassOf<APawn> ClientClass; // BP_SSRPlayer 담을 곳
+	
+	virtual void BeginPlay() override; // 게임 시작 시 호출될 함수
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<class UUserWidget> StartUIClass; // 에디터에서 StartUI 블루프린트 선택
+
+	UPROPERTY()
+	class UUserWidget* StartUIInstance; // 생성된 위젯 저장용
 };

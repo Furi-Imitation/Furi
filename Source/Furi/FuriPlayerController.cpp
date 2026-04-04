@@ -43,24 +43,29 @@ void AFuriPlayerController::BeginPlay()
 		// 2. UI (HUD) 생성 및 데이터 연동
 		// ==========================================
 		// 2. UI 생성 및 내 캐릭터 연동 (기존 동일)
-		if (MainHUDWidgetClass)
-		{
-			MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
-			if (MainHUDWidget)
-			{
-				MainHUDWidget->AddToViewport();
-
-				if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
-				{
-					MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
-				}
-
-				// 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
-				// 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
-				GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this,
-				                                &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
-			}
-		}
+		
+		
+		// startui랑 겹쳐서 나오는중
+		
+		// if (MainHUDWidgetClass)
+		// {
+		// 	MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
+		// 	if (MainHUDWidget)
+		// 	{
+		// 		MainHUDWidget->AddToViewport();
+		//
+		// 		if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
+		// 		{
+		// 			MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
+		// 		}
+		//
+		// 		// 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
+		// 		// 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
+		// 		GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this,
+		// 		                                &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
+		// 	}
+		// }
+		// --------------------------------------------
 	}
 }
 
