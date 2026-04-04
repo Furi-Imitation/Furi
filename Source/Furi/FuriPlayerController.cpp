@@ -130,23 +130,50 @@ void AFuriPlayerController::UpdateStandardCamera(float DeltaTime)
 
 void AFuriPlayerController::SetCinematicMode(bool bEnabled, AActor* TargetActor)
 {
-	bIsCinematicMode = bEnabled;
-	CinematicTarget = TargetActor;
+	// 🌟 서버에서 각 클라이언트의 PC에게 카메라 변경을 명령합니다.
+	if (!HasAuthority()) return;
 
 	AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn());
-	if (!MyChar)
+	if (!MyChar) return;
+
+	// 만약 끄는 시점에 TargetActor가 들어오지 않았다면, 기존에 저장해둔 타겟을 사용합니다.
+	AActor* FinalTarget = TargetActor;
+	if (!bEnabled && !FinalTarget)
 	{
-		return;
+		FinalTarget = CinematicTarget;
 	}
+
+	// 1. 내(시전자) 카메라 변경 명령
+	Client_SetCinematicCamera(bEnabled, MyChar);
+
+	// 2. 상대방(피격자) 카메라 변경 명령
+	if (AGasCharacterBase* TargetChar = Cast<AGasCharacterBase>(FinalTarget))
+	{
+		if (AFuriPlayerController* TargetPC = Cast<AFuriPlayerController>(TargetChar->GetController()))
+		{
+			// 상대방도 나의 캐릭터(MyChar) 내부 카메라를 보도록 설정 (켤 때 MyChar, 끌 때도 MyChar를 인자로 줘서 로컬에서 복구 판단)
+			TargetPC->Client_SetCinematicCamera(bEnabled, MyChar);
+		}
+	}
+
+	// 상태 및 타겟 저장
+	bIsCinematicMode = bEnabled;
+	CinematicTarget = bEnabled ? FinalTarget : nullptr;
+}
+
+void AFuriPlayerController::Client_SetCinematicCamera_Implementation(bool bEnabled, AActor* CameraSource)
+{
+	// 🌟 이 부분은 각 플레이어의 기기(로컬)에서 실행됩니다.
+	bIsCinematicMode = bEnabled;
 
 	if (bEnabled)
 	{
-		// 1. 맵에 배치된 외부 카메라에서 캐릭터 내부의 '궁극기 카메라'로 부드럽게(0.2초) 화면을 넘깁니다.
-		SetViewTargetWithBlend(MyChar, 0.2f, VTBlend_Cubic);
+		// 시네마틱 시작: 전달받은 카메라 소스(보통 시전자의 캐릭터)를 뷰타겟으로 설정
+		SetViewTargetWithBlend(CameraSource, 0.2f, VTBlend_Cubic);
 	}
 	else
 	{
-		// 3. 연출이 끝나면 원래 사용하던 맵의 메인 카메라로 화면을 부드럽게(0.3초) 복구합니다.
+		// 시네마틱 종료: 로컬에 저장되어 있던 메인 카메라로 복구
 		if (MainCameraActor)
 		{
 			SetViewTargetWithBlend(MainCameraActor, 0.3f, VTBlend_Cubic);

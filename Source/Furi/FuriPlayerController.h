@@ -19,6 +19,10 @@ public:
 	AFuriPlayerController();
     
 	void SetCinematicMode(bool bEnabled, AActor* TargetActor = nullptr);
+	
+	UFUNCTION(Client, Reliable)
+	void Client_SetCinematicCamera(bool bEnabled, AActor* CameraSource);
+
 	void UpdateStandardCamera(float DeltaTime);
 	
 
