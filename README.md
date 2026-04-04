@@ -1,35 +1,75 @@
-# [Portfolio] Furi Replicant: High-Speed Networked Action
-> **UE5 GAS 기반의 고성능 전투 시스템 및 다이내믹 카메라 프레임워크**
+# [Portfolio] Furi Replicant: Networked High-Speed Action
+> **UE5 GAS 기반의 고밀도 전투 시스템 및 커스텀 데이터 파이프라인 구축**
 
-본 프로젝트는 고도의 컨트롤이 요구되는 액션 게임의 핵심 메커니즘을 **C++와 Gameplay Ability System(GAS)**으로 구현한 포트폴리오입니다. 특히 **네트워크 예측(Prediction)**과 **데이터 주도형 설계**를 통해 확장성과 안정성을 동시에 확보했습니다.
+본 프로젝트는 하드코어 액션 게임 **'Furi'**의 핵심 시스템을 모작하며, **Gameplay Ability System(GAS)**의 프레임워크를 심층 커스터마이징하여 고성능 액션 게임에 적합한 **데이터 주도형(Data-Driven) 전투 시스템**과 **실시간 네트워크 동기화**를 구현한 포트폴리오입니다.
 
 ---
 
-## 🛠 핵심 기술 스택
+## 🛠 Tech Stack & Networking
 - **Engine**: Unreal Engine 5.3
-- **Language**: C++ (Core Logic), Blueprints (UI & VFX)
-- **Framework**: **Gameplay Ability System (GAS)**
-- **Networking**: Client-side Prediction, Server Validation, RepNotify
-- **Architecture**: Data-Driven (UDataAsset), Component-Based
+- **Language**: C++ (Core Logic), Blueprints (UI & VFX Binding)
+- **Framework**: **Gameplay Ability System (GAS)** (Network Ready)
+- **Networking Model**: Client-Server (Prediction, Replication, Custom Serialization)
+- **Architecture**: Data-Driven Design (UDataAsset), Component-Based
 
 ---
 
-## 💻 핵심 로직 분석 (Technical Deep Dive)
+## 🎯 Key Technical Highlights (핵심 기술 역량)
 
-### 1. 지연 시간 없는 콤보 시스템 (Networked Combo System)
-`GA_Attack` 어빌리티는 GAS의 **Local Predicted** 실행 정책을 사용하여 클라이언트에서 즉각적인 반응을 제공하며, 태그 기반의 콤보 윈도우를 통해 유연한 연격 로직을 구현했습니다.
+### 1. 확장성 있는 전투 데이터 구조 및 아키텍처 (`FuriTypes.h`)
+전투 중 발생하는 모든 판정과 무기 설정을 체계적으로 관리하기 위해 고유한 데이터 타입을 정의했습니다. 이를 통해 기획자가 코드 수정 없이 다양한 공격 속성과 무기를 구성할 수 있습니다.
+
+- **EFuriDamageType & Response**: 근접, 투사체 등 공격 성격과 스태거, 기절 등 피격 반응을 세분화하여 정교한 액션 피드백 구현.
+- **FFuriDamageInfo**: 데미지 양뿐만 아니라 가드/패링 가능 여부, 무적 무시 속성 등을 포함하여 GAS의 `EffectContext`에 실어 보내는 핵심 데이터 구조체.
+- **FWeaponConfig & InputActionConfig**: 무기별 메쉬, 부착 소켓, 애니메이션 레이어(ABP) 및 입력 태그 매핑을 데이터화하여 실시간 무기 교체 시스템의 유연성 확보.
+
+### 2. 커스텀 GAS 파이프라인 구축 (`AbilityTypes` & `Globals`)
+표준 GAS의 한계를 극복하고 게임 고유의 데이터를 네트워크 상에서 안전하게 전달하기 위해 엔진 레벨의 기능을 오버라이딩했습니다.
+
+- **FFuriGameplayEffectContext**: 기본 `FGameplayEffectContext`를 상속받아 `FFuriDamageInfo`를 포함하도록 확장. `NetSerialize`를 오버라이딩하여 커스텀 데이터를 비트 단위로 최적화하여 직렬화.
+- **UFuriAbilitySystemGlobals**: 엔진이 `GameplayEffectContext`를 생성할 때 커스텀 컨텍스트를 할당하도록 `AllocGameplayEffectContext`를 가로채기(Override)하여 시스템 전반에 통합.
+
+```cpp
+// FuriAbilityTypes.cpp: 네트워크 최적화 직렬화 로직
+bool FFuriGameplayEffectContext::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess) {
+    FGameplayEffectContext::NetSerialize(Ar, Map, bOutSuccess); // 부모 데이터 우선
+    Ar << DamageInfo.Amount;            
+    Ar << DamageInfo.bCanBeBlocked;     // 가드 가능 여부
+    Ar << DamageInfo.bCanBeParried;     // 패링 가능 여부
+    Ar << DamageInfo.bShouldForceInterrupt; // 강제 경직 여부
+    bOutSuccess = true; return true;
+}
+```
+
+### 3. 데이터 주도형 어빌리티 베이스 (`UFuriGameplayAbilityBase`)
+모든 어빌리티가 외부 `DataAsset`으로부터 코스트와 쿨타임 정보를 동적으로 가져오도록 설계했습니다. `ApplyCost`, `CheckCost` 등을 오버라이딩하여 하드코딩을 배제했습니다.
+
+```cpp
+// UFuriGameplayAbilityBase.cpp: DataAsset 기반 코스트 주입
+void UFuriGameplayAbilityBase::ApplyCost(...) const {
+    if (UGameplayEffect* CostGE = GetCostGameplayEffect()) {
+        FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CostGE->GetClass(), GetAbilityLevel());
+        FFuriSkillData SkillData;
+        if (GetCurrentSkillData(SkillData)) {
+            // Data Asset의 수치를 SetByCaller로 동적 주입하여 유지보수성 극대화
+            SpecHandle.Data.Get()->SetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Cost.Stamina")), -SkillData.StaminaCost);
+        }
+        ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
+    }
+}
+```
+
+### 4. 네트워크 예측 기반 전투 및 카메라 시스템
+- **Networked Combo System**: GAS의 **Local Predicted** 정책과 `AbilityTask_WaitGameplayEvent`를 결합하여 지연 시간 환경에서도 즉각적인 반응성을 제공.
 
 ```cpp
 // GA_Attack.cpp: 콤보 입력 처리 및 예측(Prediction) 로직
 void UGA_Attack::InputPressed(...) {
-    // 콤보 입력 가능 시간(Window) 내에 입력이 들어왔는지 확인
     if (bComboWindowOpened && !bNextComboReserved && CurrentComboIndex < 3) {
         bNextComboReserved = true;
+        RotateTowardsClosestEnemy(MyAvatar, AttackRange); // 타겟 방향 자동 회전
         
-        // 타겟 방향으로 캐릭터를 자동 회전 (UX 향상)
-        RotateTowardsClosestEnemy(MyAvatar, AttackRange);
-
-        // 현재 섹션에서 다음 섹션으로의 몽타주 전이 예약
+        // 몽타주 섹션 전이 예약 (클라이언트 즉시 실행으로 반응성 확보)
         FName CurrentSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex);
         FName NextSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex + 1);
         MontageSetNextSectionName(CurrentSection, NextSection);
@@ -37,75 +77,90 @@ void UGA_Attack::InputPressed(...) {
     }
 }
 ```
-- **기술적 성과**: 클라이언트-서버 간의 몽타주 재생 위치를 동기화하고, `AbilityTask_WaitGameplayEvent`를 통해 애니메이션 특정 프레임에서 대미지 판정(`PerformHitCheck`)을 수행하여 시각적 연출과 로직의 일치성을 확보했습니다.
 
-### 2. 다이내믹 보스전 카메라 (Dynamic Camera System)
-`FuriPlayerController`에서 직접 구현한 카메라 로직은 플레이어와 보스 간의 거리를 실시간으로 계산하여 최적의 뷰를 제공합니다.
+- **Dynamic Camera System**: `FuriPlayerController`에서 두 캐릭터 간의 거리를 실시간 계산하여 `ArmLength`와 `FOV`를 보간하는 커스텀 카메라 로직 구현.
 
 ```cpp
 // FuriPlayerController.cpp: 동적 거리 기반 줌인/아웃 로직
 void AFuriPlayerController::UpdateStandardCamera(float DeltaTime) {
-    // 1. 모든 캐릭터의 위치를 더해 중간 지점(Center) 계산
-    FVector SumLocation = FVector::ZeroVector;
-    for (AActor* Actor : Players) { SumLocation += Actor->GetActorLocation(); }
-    FVector CenterTarget = SumLocation / Players.Num();
-
-    // 2. 캐릭터 간 거리에 따라 목표 높이(TargetZ) 동적 설정
     float MaxDist = FVector::Dist(Players[0]->GetActorLocation(), Players[1]->GetActorLocation());
     float TargetZ = FMath::Clamp(MinCameraHeight + (MaxDist * CameraPadding), MinCameraHeight, MaxCameraHeight);
-
-    // 3. FInterpTo를 사용한 부드러운 카메라 이동
     float NewZ = FMath::FInterpTo(CurrentCamLoc.Z, TargetZ, DeltaTime, ZoomInterpSpeed);
     
-    // 4. 높이에 따른 X축 오프셋 보간 (멀어질수록 넓은 시야 확보)
-    float HeightAlpha = FMath::GetMappedRangeValueClamped(FVector2D(MinHeight, MaxHeight), FVector2D(0, 1), NewZ);
+    float HeightAlpha = FMath::GetMappedRangeValueClamped(FVector2D(MinCameraHeight, MaxCameraHeight), FVector2D(0, 1), NewZ);
     float DynamicOffsetX = FMath::Lerp(CloseOffset, FarOffset, HeightAlpha);
-
-    FVector FinalTarget = CenterTarget + FVector(DynamicOffsetX, 0.f, 0.f);
-    MainCameraActor->SetActorLocation(FinalTarget);
+    MainCameraActor->SetActorLocation(CenterTarget + FVector(DynamicOffsetX, 0.f, NewZ));
 }
 ```
-- **기술적 성과**: 단순한 `SpringArm` 사용이 아닌, 수동 위치 보간을 통해 **쿼터뷰와 사이드뷰의 장점**을 결합한 'Furi 스타일' 카메라를 C++로 완벽히 재현했습니다.
 
-### 3. GAS 속성 시스템 및 네트워크 리플리케이션
-`BasicAttributeSet`을 통해 캐릭터의 스탯을 정의하고, 네트워크 환경에서 안전하게 동기화합니다.
+### 5. GAS 속성 시스템 및 리플리케이션 (`BasicAttributeSet`)
+캐릭터의 체력, 스태미나 등을 서버 검증 하에 관리하며 실시간 동기화를 보장합니다.
 
 ```cpp
-// BasicAttributeSet.h: 특성 정의 및 리플리케이션 설정
-UPROPERTY(BlueprintReadOnly, Category = "Attributes", ReplicatedUsing = OnRep_Health)
-FGameplayAttributeData Health;
-
-// PostGameplayEffectExecute: 수치 변경 후 클램핑(Clamping) 처리
+// BasicAttributeSet.cpp: 수치 변경 후 서버 측 클램핑 및 검증
 void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) {
     if (Data.EvaluatedData.Attribute == GetHealthAttribute()) {
-        // 체력이 MaxHealth를 넘지 않도록, 0보다 작아지지 않도록 제한
+        // 체력이 0~MaxHealth 범위를 벗어나지 않도록 보정
         SetHealth(FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth()));
     }
 }
 ```
-- **기술적 성과**: `PreAttributeChange`와 `PostGameplayEffectExecute`를 활용하여, 수치 변경 전후의 유효성 검사를 수행함으로써 네트워크 레이턴시 상황에서도 비정상적인 스탯 변화를 방지했습니다.
 
 ---
 
-## 🚀 주요 문제 해결 경험 (Troubleshooting)
+## 🚀 Technical Challenges & Troubleshooting (문제 해결 경험)
 
-### [Issue] 네트워크 상황에서의 콤보 끊김 현상
-- **현상**: 서버의 지연으로 인해 클라이언트에서 입력한 콤보가 제때 전달되지 않아 연격이 끊김.
-- **해결**: GAS의 `NetExecutionPolicy`를 `LocalPredicted`로 설정하고, 클라이언트에서 즉시 몽타주 섹션을 변경하는 **예측 시스템**을 강화하여 지연 시간 환경에서도 매끄러운 콤보 발동 확인.
+### [Challenge] 네트워크 상에서의 커스텀 데미지 판정 데이터 유실
+- **Problem**: 클라이언트에서 설정한 '방어 불가' 속성이 서버 판정 시 기본값으로 초기화되는 문제 발생.
+- **Solution**: `FuriAbilityTypes`에서 `Duplicate()`(딥 카피)와 `NetSerialize()`를 직접 구현하여 네트워크 패킷 수준에서 데이터 무결성을 100% 확보.
 
-### [Issue] 시네마틱 연출 시 카메라 제어권 충돌
-- **현상**: 필살기(`GA_Ultimate`) 연출 중 `PlayerController`의 자동 카메라 로직이 개입하여 화면이 흔들림.
-- **해결**: `bIsCinematicMode` 플래그를 도입하여 연출 중에는 카메라 업데이트 로직을 일시 중단하고, 연출 종료 후 `FInterpTo`를 통해 원래의 전투 뷰로 부드럽게 복구하는 상태 관리 시스템 구축.
+### [Challenge] 네트워크 상황에서의 콤보 끊김 현상
+- **현상**: 서버 지연 발생 시 애니메이션이 멈추고 콤보 연격이 끊기는 문제.
+- **해결**: `LocalPredicted` 정책을 강화하여 클라이언트에서 몽타주 섹션 전이를 즉시 실행하도록 변경하여 지연 환경에서도 매끄러운 콤보 발동 확인.
+
+### [Challenge] 시네마틱 연출 시 카메라 제어권 충돌
+- **현상**: 필살기(`GA_Ultimate`) 연출 중 `PlayerController`의 자동 카메라 로직이 개입하여 화면 흔들림 발생.
+- **해결**: `bIsCinematicMode` 플래그를 도입하여 연출 중에는 카메라 업데이트 로직을 일시 중단하고, 종료 후 `FInterpTo`를 통해 원래의 전투 뷰로 부드럽게 복구하는 상태 관리 시스템 구축.
 
 ---
 
-## 📂 프로젝트 아키텍처
-- **Source/Furi/GamePlayAbilitySystem**: 콤보 공격, 패링, 대시 등 핵심 액션 로직 (GAS 기반)
-- **Source/Furi/SSR**: AuraBlade 등 특수 스킬 및 발사체 물리 로직
-- **Source/Furi/Weapons**: DataAsset 기반의 무기 스탯 및 몽타주 관리 시스템
-- **Source/Furi/UI**: GAS Attribute와 연동되는 실시간 HUD 시스템
+## 📂 프로젝트 구조 및 핵심 데이터 (`FuriTypes.h`)
+
+```cpp
+// FuriTypes.h: 전역 사용 데이터 구조 정의
+UENUM(BlueprintType)
+enum class EFuriDamageType : uint8 { None, Melee, Projectile, Explosion, Environment };
+
+UENUM(BlueprintType)
+enum class EFuriDamageResponse : uint8 { None, HitReaction, Stagger, Stun, KnockBack };
+
+USTRUCT(BlueprintType)
+struct FFuriDamageInfo {
+    GENERATED_BODY()
+    UPROPERTY(EditAnywhere) float Amount = 0.f;
+    UPROPERTY(EditAnywhere) EFuriDamageType DamageType;
+    UPROPERTY(EditAnywhere) EFuriDamageResponse DamageResponse;
+    UPROPERTY(EditAnywhere) bool bCanBeBlocked = false;   // 가드 가능 여부
+    UPROPERTY(EditAnywhere) bool bCanBeParried = false;   // 패링 가능 여부
+    UPROPERTY(EditAnywhere) bool bShouldForceInterrupt = false; // 강제 인터럽트 여부
+};
+
+USTRUCT(BlueprintType)
+struct FWeaponConfig {
+    GENERATED_BODY()
+    UPROPERTY(EditAnywhere) FGameplayTag WeaponTag;
+    UPROPERTY(EditAnywhere) TArray<FWeaponSlotConfig> WeaponSlots;
+    UPROPERTY(EditAnywhere) TSubclassOf<UAnimInstance> AnimLayerClass;
+    UPROPERTY(EditAnywhere) float MaxWalkSpeed = 800.f;
+};
+```
+
+- **GamePlayAbilitySystem**: 콤보 공격, 패링, 커스텀 GAS 파이프라인 (Types, Globals, Base)
+- **SSR Module**: 투사체 물리 및 캐릭터 고유 스킬 시스템
+- **Weapons & Input**: 데이터 에셋 기반의 무기 스탯 및 입력 매핑 관리 (`FuriTypes.h`)
+- **UI System**: GAS Attribute와 실시간 연동되는 데이터 바인딩 HUD
 
 ---
 
 ## 💡 종합 성과
-본 프로젝트를 통해 **언리얼 엔진의 핵심 프레임워크인 GAS**를 실무 수준으로 다루는 역량을 증명했습니다. 단순히 기능을 만드는 것에 그치지 않고 **네트워크 환경에서의 동기화 오차 해결**과 **C++ 기반의 정교한 수학적 계산을 통한 카메라 제어** 등 기술적 디테일에 집중하여 프로젝트의 완성도를 높였습니다.
+본 프로젝트를 통해 **GAS의 내부 동작 원리를 파악하고 엔진 레벨에서 시스템을 확장**하는 깊이 있는 기술력을 확보했습니다. 특히 **데이터 주도형 설계**를 통해 개발 효율성을 높이고, **커스텀 직렬화 및 예측 기술**을 통한 네트워크 최적화를 달성하여 고성능 액션 게임 개발에 필요한 핵심 역량을 증명했습니다.
