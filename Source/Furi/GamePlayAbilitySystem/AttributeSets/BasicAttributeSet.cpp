@@ -37,6 +37,62 @@ void UBasicAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute,
 	}
 }
 
+bool UBasicAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCallbackData& Data)
+{
+	if (!Super::PreGameplayEffectExecute(Data)) return false;
+
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	{
+		const float DamageMagnitude = Data.EvaluatedData.Magnitude;
+		if (DamageMagnitude < 0.0f) // 데미지(음수 Magnitude)인 경우에만 체크
+		{
+			UAbilitySystemComponent* TargetASC = &Data.Target;
+			FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
+			FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(Context);
+			
+			bool bIsInvincible = false;
+			bool bIsBlocked = false;
+
+			if (FuriContext)
+			{
+				const FFuriDamageInfo& DamageInfo = FuriContext->GetDamageInfo();
+
+				// 1. 무적 체크
+				if (TargetASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible"))) && !DamageInfo.bShouldDamageInvincible)
+				{
+					bIsInvincible = true;
+				}
+
+				// 2. 방어 체크
+				if (!bIsInvincible && TargetASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking"))) && DamageInfo.bCanBeBlocked)
+				{
+					bIsBlocked = true;
+				}
+			}
+
+			if (bIsInvincible || bIsBlocked)
+			{
+				if (bIsInvincible)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[BasicAttributeSet] PreExecute: Damage Ignored (Invincible)!"));
+				}
+				else if (bIsBlocked)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[BasicAttributeSet] PreExecute: Damage Blocked (Canceling Block Skill)!"));
+					
+					FGameplayTagContainer BlockTags;
+					BlockTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking")));
+					TargetASC->RemoveActiveEffectsWithGrantedTags(BlockTags);
+				}
+				
+				return false; // 🛡️ 아예 적용되지 않도록 차단!
+			}
+		}
+	}
+
+	return true;
+}
+
 void UBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
