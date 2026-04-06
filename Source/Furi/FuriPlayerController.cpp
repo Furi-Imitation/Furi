@@ -1,5 +1,7 @@
 ﻿#include "FuriPlayerController.h"
 
+#include "FuriGameMode.h"
+#include "Net/UnrealNetwork.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -48,25 +50,25 @@ void AFuriPlayerController::BeginPlay()
 		
 		// startui랑 겹쳐서 나오는중
 		
-		// if (MainHUDWidgetClass)
-		// {
-		// 	MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
-		// 	if (MainHUDWidget)
-		// 	{
-		// 		MainHUDWidget->AddToViewport();
-		//
-		// 		if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
-		// 		{
-		// 			MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
-		// 		}
-		//
-		// 		// 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
-		// 		// 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
-		// 		GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this,
-		// 		                                &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
-		// 	}
-		// }
-		// --------------------------------------------
+		if (MainHUDWidgetClass)
+		{
+			MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
+			if (MainHUDWidget)
+			{
+				MainHUDWidget->AddToViewport();
+		
+				if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
+				{
+					MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
+				}
+		
+				// 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
+				// 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
+				GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this,
+				                                &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
+			}
+		}
+		// --------------------------------------
 	}
 }
 
@@ -232,6 +234,28 @@ void AFuriPlayerController::ShowGameEndUI(bool bVictory)
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to Create EndUIInstance!"));
+	}
+}
+
+void AFuriPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	// bIsReady 변수를 복제 목록에 추가
+	DOREPLIFETIME(AFuriPlayerController, bIsReady);
+}
+
+void AFuriPlayerController::Server_SetReady_Implementation(bool bNewReady)
+{
+	// 서버에서 값을 변경하면 Replicated 설정 덕분에 모든 클라이언트에게 전달됨
+	bIsReady = bNewReady;
+	UE_LOG(LogTemp, Warning, TEXT("Server Received Ready from Player!"));
+
+	// 서버의 GameMode에게 모두가 레디했는지 체크하라고 시킴
+	AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode());
+	if (GM)
+	{
+		GM->CheckAllPlayersReady();
 	}
 }
 

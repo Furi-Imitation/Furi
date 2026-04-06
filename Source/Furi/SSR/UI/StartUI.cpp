@@ -4,10 +4,12 @@
 #include "StartUI.h"
 
 #include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "Furi/FuriPlayerController.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Furi/UI/FuriGameHUDWidget.h"
 #include "Furi/UI/FuriSkillIconWidget.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 bool UStartUI::Initialize()
@@ -17,9 +19,15 @@ bool UStartUI::Initialize()
 	if (!Success)
 		return false;
 	
-	if (StartButton)
+	// 초기 상태 설정
+	if (WaitingText)
 	{
-		StartButton->OnClicked.AddDynamic(this, &UStartUI::OnStartButtonClicked);
+		WaitingText->SetVisibility(ESlateVisibility::Hidden);
+	}
+	
+	if (ReadyButton)
+	{
+		ReadyButton->OnClicked.AddDynamic(this, &UStartUI::OnStartButtonClicked);
 	}
 	if (ExitButton)
 	{
@@ -31,56 +39,55 @@ bool UStartUI::Initialize()
 
 void UStartUI::OnStartButtonClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Start Button Clicked!"));
+	// UE_LOG(LogTemp, Warning, TEXT("Start Button Clicked!"));
+	//
+	// APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	// 	
+	// if (PC)
+	// {
+	// 	FInputModeGameOnly InputMode;
+	// 	PC->SetInputMode(InputMode);
+	// 	PC->bShowMouseCursor = false;
+	// }	
+	//
+	// // 리슨 서버로 level을 연다
+	// UGameplayStatics::OpenLevel(GetWorld(), FName("Lvl_Furi"), true, TEXT("Listen"));
+	// RemoveFromParent();
+	// -------------------------------------------------
 	
-	// 1. 에셋 할당 체크 로그
-	if (!FuriGameHUDWidgetClass || !FuriSkillIconWidgetClass)
+	// 로컬 플레이어 컨트롤러 가져오기
+	AFuriPlayerController* PC = Cast<AFuriPlayerController>(GetOwningPlayer());
+    
+	if (PC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("UI Classes are NULL! Check WBP_StartUI Blueprint!"));
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("Local PlayerController Found! Sending RPC..."));
+		PC->Server_SetReady(true); // 이 요청이 서버로 가야 합니다.
+		UpdateReadyVisual(true);
 	}
-	
-	if (FuriGameHUDWidgetClass && FuriSkillIconWidgetClass)
+	else
 	{
-		APlayerController* PC = GetWorld()->GetFirstPlayerController();
-		
-		if (!PC) 
-			return;
-		
-		UFuriGameHUDWidget* FuriGameHUDUI = CreateWidget<UFuriGameHUDWidget>(GetWorld(), FuriGameHUDWidgetClass);
-		
-		UFuriSkillIconWidget* FuriSkillIconUI = CreateWidget<UFuriSkillIconWidget>(GetWorld(), FuriSkillIconWidgetClass);
-		
-		
-		if(FuriGameHUDUI) 
-		{
-			FuriGameHUDUI->AddToViewport();
-			UE_LOG(LogTemp, Warning, TEXT("HUD Success"));
-           
-			if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(PC->GetPawn()))
-			{
-				FuriGameHUDUI->InitPlayerStats(MyChar->GetAbilitySystemComponent());
-				UE_LOG(LogTemp, Warning, TEXT("Character Stats Linked"));
-			}
-			else {
-				UE_LOG(LogTemp, Error, TEXT("Pawn is NULL or Cast Failed!"));
-			}
-		}
-       
-		if(FuriSkillIconUI)
-		{
-			FuriSkillIconUI->AddToViewport();
-			UE_LOG(LogTemp, Warning, TEXT("Skill UI Success"));
-		}
-		
-		FInputModeGameOnly InputMode;
-		PC->SetInputMode(InputMode);
-		PC->bShowMouseCursor = false;
-		
-		RemoveFromParent();
+		UE_LOG(LogTemp, Error, TEXT("PlayerController NOT Found in StartUI!"));
 	}
-	
 }
+
+void UStartUI::UpdateReadyVisual(bool bIsReady)
+{
+	if (bIsReady)
+	{
+		if (ReadyButton) ReadyButton->SetIsEnabled(false); // 다시 못 누르게 비활성화
+		ShowWaitingMessage(true);
+	}
+}
+
+void UStartUI::ShowWaitingMessage(bool bShow)
+{
+	if (WaitingText)
+	{
+		WaitingText->SetVisibility(bShow ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		WaitingText->SetText(FText::FromString(TEXT("Waiting for other player...")));
+	}
+}
+
 
 void UStartUI::OnQuitClicked()
 {

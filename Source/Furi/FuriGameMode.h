@@ -17,6 +17,8 @@ class FURI_API AFuriGameMode : public AGameModeBase
 public:
 	// 컨트롤러에 따라 어떤 폰(Pawn) 클래스를 줄지 결정하는 함수입니다.
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
+	
+	void CheckAllPlayersReady();
 
 protected:
 	// 에디터에서 선택할 수 있게 노출
@@ -27,10 +29,22 @@ protected:
 	TSubclassOf<APawn> ClientClass; // BP_SSRPlayer 담을 곳
 	
 	virtual void BeginPlay() override; // 게임 시작 시 호출될 함수
-
+	
+	
+	// --- [기존 StartGameMode에서 가져온 UI 로직] ---
 	UPROPERTY(EditAnywhere, Category = "UI")
-	TSubclassOf<class UUserWidget> StartUIClass; // 에디터에서 StartUI 블루프린트 선택
-
+	TSubclassOf<UUserWidget> StartUIClass;
+	
 	UPROPERTY()
-	class UUserWidget* StartUIInstance; // 생성된 위젯 저장용
+	UUserWidget* StartUIInstance;
+
+	// 블루프린트 디테일창에서 HUD 위젯 클래스를 선택할 수 있게 합니다.
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UFuriGameHUDWidget> FuriGameHUDWidgetClass;
+
+	// 생성된 HUD 인스턴스를 보관하고 싶다면 선언 (선택 사항)
+	UPROPERTY()
+	UFuriGameHUDWidget* CurrentHUD;
+	
+	
 };

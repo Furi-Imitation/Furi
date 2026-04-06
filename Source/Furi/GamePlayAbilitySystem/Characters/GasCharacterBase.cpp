@@ -336,7 +336,7 @@ void AGasCharacterBase::Die()
 	// ==========================================
     
 	if (HasAuthority()) // 서버에서만 판단합니다.
-	{
+	{ 
 		AController* MyController = GetController();
         
 		// 1. 죽은 게 플레이어라면 -> 그 플레이어에게 "패배" 전달
