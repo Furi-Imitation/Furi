@@ -76,7 +76,7 @@ void USSRAttack::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGa
 	{
 		bNextComboReserved = true;
 		FName CurrentSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex);
-		FName NextSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex + 1);
+		FName NextSection = *FString::Printf(TEXT(	"Attack%d"), CurrentComboIndex + 1);
 		MontageSetNextSectionName(CurrentSection, NextSection);
 		CurrentComboIndex++;
 	}
