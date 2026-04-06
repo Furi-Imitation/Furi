@@ -1,5 +1,4 @@
 ﻿#include "FuriGameHUDWidget.h"
-
 #include "FuriSkillIconWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
@@ -13,16 +12,12 @@ void UFuriGameHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	// 🌟 [게임 타이머 업데이트]
 	if (Text_GameTime && GetWorld())
 	{
-		// 월드의 현재 게임 진행 시간을 초 단위로 가져옵니다.
 		int32 TotalSeconds = FMath::FloorToInt(GetWorld()->GetTimeSeconds());
-
 		int32 Minutes = TotalSeconds / 60;
 		int32 Seconds = TotalSeconds % 60;
 
-		// "04:12" 형식으로 문자열 포맷팅
 		FString TimeString = FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
 		Text_GameTime->SetText(FText::FromString(TimeString));
 	}
@@ -36,7 +31,6 @@ void UFuriGameHUDWidget::InitPlayerStats(UAbilitySystemComponent* InPlayerASC)
 	}
 	PlayerASC = InPlayerASC;
 
-	// 1. 초기 UI 값 세팅 시 Max 속성으로 나누기
 	if (PB_PlayerHP)
 	{
 		float CurrentHP = PlayerASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute());
@@ -50,44 +44,13 @@ void UFuriGameHUDWidget::InitPlayerStats(UAbilitySystemComponent* InPlayerASC)
 		PB_PlayerStamina->SetPercent(MaxStamina > 0.f ? (CurrentStamina / MaxStamina) : 0.f);
 	}
 
-	// 2. 델리게이트 연결
 	PlayerASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).AddUObject(
 		this, &UFuriGameHUDWidget::OnPlayerHealthChanged);
 	PlayerASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute()).AddUObject(
 		this, &UFuriGameHUDWidget::OnPlayerStaminaChanged);
 
-	// ==========================================
-	// 🌟 3. 스킬 컨테이너에 동적 아이콘 생성 (Data-Driven)
-	// ==========================================
-	if (Box_SkillContainer && SkillIconWidgetClass)
-	{
-		Box_SkillContainer->ClearChildren(); // 기존 내용물 비우기
-
-		// 내 캐릭터를 찾아서 DataAsset을 가져옵니다.
-		if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(PlayerASC->GetAvatarActor()))
-		{
-			if (UFuriSkillDataAsset* SkillDA = MyChar->GetSkillUIData())
-			{
-				// DataAsset에 등록된 모든 스킬을 순회하며 위젯을 생성합니다.
-				for (const auto& Pair : SkillDA->SkillDataMap)
-				{
-					UFuriSkillIconWidget* IconWidget = CreateWidget<UFuriSkillIconWidget>(this, SkillIconWidgetClass);
-					if (IconWidget)
-					{
-						// 정보 주입!
-						IconWidget->InitSkillWidget(Pair.Value, PlayerASC.Get());
-
-						// 우측으로 여백을 주며 가로 상자에 추가합니다.
-						UHorizontalBoxSlot* BoxSlot = Box_SkillContainer->AddChildToHorizontalBox(IconWidget);
-						if (BoxSlot)
-						{
-							BoxSlot->SetPadding(FMargin(0.f, 0.f, 15.f, 0.f));
-						}
-					}
-				}
-			}
-		}
-	}
+	// 🌟 내 캐릭터의 DataAsset을 읽어와서 Box_SkillContainer에 채웁니다.
+	UpdateSkillUI(PlayerASC.Get(), Box_SkillContainer);
 }
 
 void UFuriGameHUDWidget::InitEnemyStats(UAbilitySystemComponent* InEnemyASC)
@@ -98,7 +61,6 @@ void UFuriGameHUDWidget::InitEnemyStats(UAbilitySystemComponent* InEnemyASC)
 	}
 	EnemyASC = InEnemyASC;
 
-	// 1. 초기 UI 값 세팅
 	if (PB_EnemyHP)
 	{
 		float CurrentHP = EnemyASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute());
@@ -112,21 +74,54 @@ void UFuriGameHUDWidget::InitEnemyStats(UAbilitySystemComponent* InEnemyASC)
 		PB_EnemyStamina->SetPercent(MaxStamina > 0.f ? (CurrentStamina / MaxStamina) : 0.f);
 	}
 
-	// 2. 델리게이트 연결
 	EnemyASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).AddUObject(
 		this, &UFuriGameHUDWidget::OnEnemyHealthChanged);
 	EnemyASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute()).AddUObject(
 		this, &UFuriGameHUDWidget::OnEnemyStaminaChanged);
+
+	// 🌟 적 캐릭터의 DataAsset을 읽어와서 Box_EnemySkillContainer에 채웁니다.
+	UpdateSkillUI(EnemyASC.Get(), Box_EnemySkillContainer);
+}
+
+// 🌟 스킬 위젯 동적 생성 헬퍼 함수
+void UFuriGameHUDWidget::UpdateSkillUI(UAbilitySystemComponent* TargetASC, UHorizontalBox* TargetContainer)
+{
+	if (!TargetASC || !TargetContainer || !SkillIconWidgetClass)
+	{
+		return;
+	}
+
+	TargetContainer->ClearChildren();
+
+	if (AGasCharacterBase* TargetChar = Cast<AGasCharacterBase>(TargetASC->GetAvatarActor()))
+	{
+		// 해당 캐릭터(내 캐릭터 OR 적 캐릭터)에 할당된 DataAsset을 가져옵니다.
+		if (UFuriSkillDataAsset* SkillDA = TargetChar->GetSkillUIData())
+		{
+			for (const auto& Pair : SkillDA->SkillDataMap)
+			{
+				UFuriSkillIconWidget* IconWidget = CreateWidget<UFuriSkillIconWidget>(this, SkillIconWidgetClass);
+				if (IconWidget)
+				{
+					IconWidget->InitSkillWidget(Pair.Value, TargetASC);
+
+					UHorizontalBoxSlot* BoxSlot = TargetContainer->AddChildToHorizontalBox(IconWidget);
+					if (BoxSlot)
+					{
+						BoxSlot->SetPadding(FMargin(0.f, 0.f, 15.f, 0.f));
+					}
+				}
+			}
+		}
+	}
 }
 
 void UFuriGameHUDWidget::OnPlayerHealthChanged(const FOnAttributeChangeData& Data)
 {
 	if (PB_PlayerHP && PlayerASC.IsValid())
 	{
-		// 실시간으로 MaxHealth를 가져와서 퍼센트를 계산합니다.
 		float MaxHP = PlayerASC->GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute());
-		float HealthPercent = MaxHP > 0.f ? (Data.NewValue / MaxHP) : 0.f;
-		PB_PlayerHP->SetPercent(HealthPercent);
+		PB_PlayerHP->SetPercent(MaxHP > 0.f ? (Data.NewValue / MaxHP) : 0.f);
 	}
 }
 
@@ -135,8 +130,7 @@ void UFuriGameHUDWidget::OnPlayerStaminaChanged(const FOnAttributeChangeData& Da
 	if (PB_PlayerStamina && PlayerASC.IsValid())
 	{
 		float MaxStamina = PlayerASC->GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
-		float StaminaPercent = MaxStamina > 0.f ? (Data.NewValue / MaxStamina) : 0.f;
-		PB_PlayerStamina->SetPercent(StaminaPercent);
+		PB_PlayerStamina->SetPercent(MaxStamina > 0.f ? (Data.NewValue / MaxStamina) : 0.f);
 	}
 }
 
@@ -145,8 +139,7 @@ void UFuriGameHUDWidget::OnEnemyHealthChanged(const FOnAttributeChangeData& Data
 	if (PB_EnemyHP && EnemyASC.IsValid())
 	{
 		float MaxHP = EnemyASC->GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute());
-		float HealthPercent = MaxHP > 0.f ? (Data.NewValue / MaxHP) : 0.f;
-		PB_EnemyHP->SetPercent(HealthPercent);
+		PB_EnemyHP->SetPercent(MaxHP > 0.f ? (Data.NewValue / MaxHP) : 0.f);
 	}
 }
 
@@ -155,7 +148,6 @@ void UFuriGameHUDWidget::OnEnemyStaminaChanged(const FOnAttributeChangeData& Dat
 	if (PB_EnemyStamina && EnemyASC.IsValid())
 	{
 		float MaxStamina = EnemyASC->GetNumericAttribute(UBasicAttributeSet::GetMaxStaminaAttribute());
-		float StaminaPercent = MaxStamina > 0.f ? (Data.NewValue / MaxStamina) : 0.f;
-		PB_EnemyStamina->SetPercent(StaminaPercent);
+		PB_EnemyStamina->SetPercent(MaxStamina > 0.f ? (Data.NewValue / MaxStamina) : 0.f);
 	}
 }

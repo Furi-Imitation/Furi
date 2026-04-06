@@ -1,38 +1,30 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "SSRSunFire.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemGlobals.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "TimerManager.h"
 #include "Engine/OverlapResult.h"
 #include "DrawDebugHelpers.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
-#include "Furi/utils/FuriTypes.h"
 #include "GameFramework/Character.h"
 
 USSRSunFire::USSRSunFire()
 {
-	// :star2: 인스턴싱 정책: 액터당 하나만 존재하게 설정
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-	// 어빌리티 식별 태그
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Action.SunFire")));
-	
-	// :star2: 실행 중일 때 캐릭터에게 부여될 태그 (이 태그로 실행 여부를 판단합니다)
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.SunFire")));
-
-	// 기본 태그 설정 (에디터에서도 설정 가능)
-	SunFireStartCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.SSR.SunFire.Start"));
-	SunFireLoopCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.SSR.SunFire.Loop"));
-	SunFireEndCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.SSR.SunFire.End"));
+	// 🚨 [수정] CDO 크래시 방지! 생성자에서의 태그 하드코딩 삭제
+	// 블루프린트 디테일 패널에서 세팅해 주세요:
+	// 1. Ability Tags -> Ability.Action.SunFire
+	// 2. Activation Owned Tags -> State.SunFire
 }
 
-void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+                                  const FGameplayAbilityActivationInfo ActivationInfo,
+                                  const FGameplayEventData* TriggerEventData)
 {
-	// [기존의 TArray 검색 로직 과감히 삭제]
-
+	// 🌟 부모 클래스의 스태미나 코스트 및 쿨타임 최우선 검사
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		K2_EndAbility();
@@ -40,37 +32,51 @@ void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	}
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-    
-	// 시작 및 루프 이펙트, 타이머 실행 (기존 코드 유지)
-	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
-	if (SunFireStartCueTag.IsValid())
-	{
-		FGameplayCueParameters Params;
-		Params.Location = GetAvatarActorFromActorInfo()->GetActorLocation();
-		ASC->ExecuteGameplayCue(SunFireStartCueTag, Params);
-	}
-	ASC->AddGameplayCue(SunFireLoopCueTag);
 
-	GetWorld()->GetTimerManager().SetTimer(TickTimerHandle, this, &USSRSunFire::ApplySunFireDamage, TickInterval, true);
-    
+	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+	if (ASC)
+	{
+		if (SunFireStartCueTag.IsValid())
+		{
+			FGameplayCueParameters Params;
+			Params.Location = GetAvatarActorFromActorInfo()->GetActorLocation();
+			ASC->ExecuteGameplayCue(SunFireStartCueTag, Params);
+		}
+		if (SunFireLoopCueTag.IsValid())
+		{
+			ASC->AddGameplayCue(SunFireLoopCueTag);
+		}
+	}
+
+	// 틱 데미지 타이머 시작
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(TickTimerHandle, this, &USSRSunFire::ApplySunFireDamage, TickInterval,
+		                                       true);
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[SunFire] 장판 활성화됨"));
 }
 
-void USSRSunFire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+void USSRSunFire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+                             const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+                             bool bWasCancelled)
 {
 	UE_LOG(LogTemp, Log, TEXT("[SunFire] EndAbility 호출됨 (토글 OFF)"));
 
-	// 1. 타이머 정리
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(TickTimerHandle);
 	}
 
-	// 2. Cue 정리
 	if (ActorInfo->AbilitySystemComponent.IsValid())
 	{
 		UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
-		ASC->RemoveGameplayCue(SunFireLoopCueTag);
+
+		if (SunFireLoopCueTag.IsValid())
+		{
+			ASC->RemoveGameplayCue(SunFireLoopCueTag);
+		}
 
 		if (SunFireEndCueTag.IsValid())
 		{
@@ -85,133 +91,121 @@ void USSRSunFire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 
 void USSRSunFire::ApplySunFireDamage()
 {
-    AActor* OwnerActor = GetAvatarActorFromActorInfo();
-    UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
-    if (!OwnerActor || !MyASC) return;
+	AActor* OwnerActor = GetAvatarActorFromActorInfo();
+	UAbilitySystemComponent* MyASC = GetAbilitySystemComponentFromActorInfo();
 
-    TArray<AActor*> OverlappedActors;
-    GetActorInRange(OverlappedActors);
+	if (!OwnerActor || !MyASC || !BaseDamageEffectClass)
+	{
+		return;
+	}
 
-    for (AActor* Target : OverlappedActors)
-    {
-        // 1. 나 자신은 제외
-        if (Target == OwnerActor) continue;
+	// 🌟 [핵심] Data Asset에서 장판 데미지 정보를 동적으로 가져옵니다.
+	FFuriSkillData SkillData;
+	FFuriDamageInfo DamageInfo;
 
-        // 2. 타겟이 우리의 캐릭터 베이스인지 확인 (필터링)
-        AGasCharacterBase* TargetCharacterBase = Cast<AGasCharacterBase>(Target);
-        if (TargetCharacterBase && DamageEffectClass)
-        {
-            // 데미지 정보 조립
-            FFuriDamageInfo DamageInfo;
-            DamageInfo.Amount = -1.0f;
-            DamageInfo.DamageType = EFuriDamageType::Melee; // 혹은 장판용 속성
-            DamageInfo.DamageResponse = EFuriDamageResponse::None;
-            DamageInfo.bCanBeBlocked = false; // 장판은 가드 불가 설정
-            
-            FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
-            FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle);
-            if (FuriContext)
-            {
-                FuriContext->SetDamageInfo(DamageInfo);
-            }
+	if (GetCurrentSkillData(SkillData))
+	{
+		DamageInfo = SkillData.DamageInfo;
+	}
+	else
+	{
+		DamageInfo.Amount = 1.0f; // 안전장치 기본값
+	}
 
-            FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, ContextHandle);
-                
-            if (SpecHandle.IsValid())
-            {
-                // 🌟 [중요] 여기서 값을 정확히 주입!
-                SpecHandle.Data.Get()->SetSetByCallerMagnitude(
-                   FGameplayTag::RequestGameplayTag(FName("Data.Damage.TickAmount")), 
-                   DamageInfo.Amount
-                );
+	// 장판 특성 강제 덮어쓰기 (가드 불가, 리액션 없음)
+	DamageInfo.DamageResponse = EFuriDamageResponse::None;
+	DamageInfo.bCanBeBlocked = false;
+	DamageInfo.bCanBeParried = false;
 
-                // 3. 🌟 타겟에게 GE 적용 (AttributeSet에서 리액션 처리)
-                TargetCharacterBase->GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-                    
-                // 4. 타격 비주얼 효과
-                FGameplayCueParameters HitParams;
-                HitParams.Location = Target->GetActorLocation();
-                MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Hit")), HitParams);
+	TArray<AActor*> OverlappedActors;
+	GetActorInRange(OverlappedActors);
 
-                UE_LOG(LogTemp, Verbose, TEXT("[SunFire] %s에게 틱 데미지 적용 완료"), *Target->GetName());
-            }
-        }
-    }
+	for (AActor* Target : OverlappedActors)
+	{
+		if (Target == OwnerActor)
+		{
+			continue;
+		}
+
+		AGasCharacterBase* TargetCharacterBase = Cast<AGasCharacterBase>(Target);
+		if (TargetCharacterBase)
+		{
+			// 엔진 표준 방식으로 컨텍스트 조립
+			FGameplayEffectContextHandle ContextHandle = MyASC->MakeEffectContext();
+			ContextHandle.AddInstigator(OwnerActor, OwnerActor);
+
+			if (FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle))
+			{
+				FuriContext->SetDamageInfo(DamageInfo);
+			}
+
+			FGameplayEffectSpecHandle SpecHandle = MyASC->MakeOutgoingSpec(
+				BaseDamageEffectClass, GetAbilityLevel(), ContextHandle);
+
+			if (SpecHandle.IsValid())
+			{
+				// 상대방 체력을 깎아야 하므로 음수(-) 처리하여 Data Asset 값 주입
+				SpecHandle.Data.Get()->SetSetByCallerMagnitude(
+					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), -DamageInfo.Amount);
+
+				// 🌟 Target->GetASC()->Apply...ToSelf 대신 MyASC->Apply...ToTarget 사용 (GAS 표준 규약)
+				MyASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(),
+				                                       TargetCharacterBase->GetAbilitySystemComponent());
+
+				FGameplayCueParameters HitParams;
+				HitParams.Location = Target->GetActorLocation();
+				MyASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(FName("GameplayCue.P1.VFX.Hit")), HitParams);
+			}
+		}
+	}
 }
 
 void USSRSunFire::GetActorInRange(TArray<AActor*>& OutActors)
 {
 	AActor* OwnerActor = GetAvatarActorFromActorInfo();
-	if (!OwnerActor) return;
+	if (!OwnerActor || !GetWorld())
+	{
+		return;
+	}
 
 	FVector Center = OwnerActor->GetActorLocation();
 	TArray<FOverlapResult> Overlaps;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(OwnerActor);
-	
-	// 1. 모든 채널을 다 훑어서 주변에 '뭐라도' 있는지 확인 (디버그용)
+
+	// 중복 검사 제거, Pawn 채널 한 번만 깔끔하게 검사
 	bool bHit = GetWorld()->OverlapMultiByChannel(
-		Overlaps, 
-		Center, 
-		FQuat::Identity, 
-		ECC_Visibility, // Pawn 대신 Visibility로 넓게 잡기
-		FCollisionShape::MakeSphere(Radius), 
-		Params
-	);
-	
-	// 2. 디버그 구체 그리기 (영구적으로 남게 설정해서 범위를 눈으로 확인)
-	DrawDebugSphere(GetWorld(), Center, Radius, 16, FColor::Red, false, 1.0f, 0, 2.0f);
-
-	if (!bHit)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[SunFire] 범위 내에 아무 액터도 감지되지 않음!"));
-		return;
-	}
-
-	for (const FOverlapResult& Result : Overlaps)
-	{
-		AActor* HitActor = Result.GetActor();
-		if (HitActor)
-		{
-			// 감지된 모든 액터의 이름과 채널을 로그로 찍음
-			UE_LOG(LogTemp, Warning, TEXT("[SunFire] 감지됨: %s / 콜리전 타입: %d"), 
-				*HitActor->GetName(), (int32)HitActor->GetRootComponent()->GetCollisionObjectType());
-            
-			OutActors.AddUnique(HitActor);
-		}
-	}
-	
-	//////////////////////////////
-
-	GetWorld()->OverlapMultiByChannel(
 		Overlaps,
 		Center,
 		FQuat::Identity,
 		ECC_Pawn,
 		FCollisionShape::MakeSphere(Radius),
 		Params
-		);
+	);
 
+#if !UE_BUILD_SHIPPING
 	// 디버그 구체 (에디터에서 확인용)
 	DrawDebugSphere(GetWorld(), Center, Radius, 16, FColor::Orange, false, TickInterval);
+#endif
 
-	for (const FOverlapResult& Result : Overlaps)
+	if (bHit)
 	{
-		if (AActor* HitActor = Result.GetActor())
+		for (const FOverlapResult& Result : Overlaps)
 		{
-			OutActors.AddUnique(HitActor);
+			if (AActor* HitActor = Result.GetActor())
+			{
+				OutActors.AddUnique(HitActor);
+			}
 		}
 	}
 }
 
-// 다시 눌렀을 때 호출되는 InputPressed에서 종료 처리를 합니다.
-void USSRSunFire::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+void USSRSunFire::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+                               const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
 
-	// 이미 실행 중인데 버튼이 다시 눌렸다면? -> 토글 OFF
-	UE_LOG(LogTemp, Warning, TEXT("[SunFire] 다시 누름 감지 -> 토글 OFF (종료합니다)"));
-    
-	// 이 함수를 호출하면 EndAbility가 실행됩니다.
-	K2_EndAbility(); 
+	// 다시 눌렀을 때 토글 OFF
+	UE_LOG(LogTemp, Warning, TEXT("[SunFire] 다시 누름 감지 -> 토글 OFF"));
+	K2_EndAbility();
 }

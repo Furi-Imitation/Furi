@@ -5,119 +5,130 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Furi/SSR/AuraBladeProjectile.h"
 #include "GameFramework/Character.h"
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h" // 🌟 커스텀 컨텍스트를 위해 추가
 
 USSRAuraBlade::USSRAuraBlade()
 {
-    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-    NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-    
-    // 시전 중에는 다른 행동을 제약하기 위해 태그 추가
-    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.SkillUsing")));
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
+
+	// 🚨 [수정] CDO 크래시 주범 제거! 블루프린트 디테일 패널의 'Activation Owned Tags'에 State.SkillUsing을 추가하세요.
+	// ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.SkillUsing")));
 }
 
 void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-    const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+                                    const FGameplayAbilityActivationInfo ActivationInfo,
+                                    const FGameplayEventData* TriggerEventData)
 {
-    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-    
-    // 1. 자원 및 쿨타임 체크
-    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-    {
-       EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-       return;
-    }
-    
-    if (ChargeMontage)
-    {
-        // 몽타주를 재생하고 기다리는 태스크
-        UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, ChargeMontage);
-        MontageTask->ReadyForActivation();
-        UE_LOG(LogTemp, Log, TEXT("[AuraBlade] 몽타주 재생 시작"));
-    }
+	// 🌟 [수정] 부모 클래스의 스태미나 코스트 및 쿨타임 결제 확인 (최상단 배치)
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
 
-    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-    if (!ASC) return;
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-    UE_LOG(LogTemp, Warning, TEXT("[AuraBlade] 시전 시작! %f초 대기 중..."), DelayTime);
+	if (ChargeMontage)
+	{
+		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this, NAME_None, ChargeMontage);
+		MontageTask->ReadyForActivation();
+	}
 
-    // 2. 기 모으기 비주얼 효과 시작 (GameplayCue)
-    if (ChargeCueTag.IsValid())
-    {
-        ASC->AddGameplayCue(ChargeCueTag);
-    }
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC)
+	{
+		return;
+	}
 
-    // 3. [핵심] WaitDelay 태스크 생성 (지정한 시간만큼 대기)
-    UAbilityTask_WaitDelay* DelayTask = UAbilityTask_WaitDelay::WaitDelay(this, DelayTime);
-    if (DelayTask)
-    {
-        // 시간이 다 되면 OnDelayFinished 함수를 호출하도록 연결
-        DelayTask->OnFinish.AddDynamic(this, &USSRAuraBlade::OnDelayFinished);
-        DelayTask->ReadyForActivation();
-    }
-    else
-    {
-        // 태스크 생성 실패 시 즉시 종료
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-    }
+	if (ChargeCueTag.IsValid())
+	{
+		ASC->AddGameplayCue(ChargeCueTag);
+	}
+
+	UAbilityTask_WaitDelay* DelayTask = UAbilityTask_WaitDelay::WaitDelay(this, DelayTime);
+	if (DelayTask)
+	{
+		DelayTask->OnFinish.AddDynamic(this, &USSRAuraBlade::OnDelayFinished);
+		DelayTask->ReadyForActivation();
+	}
+	else
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+	}
 }
 
 void USSRAuraBlade::OnDelayFinished()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[AuraBlade] 대기 완료! 발사!"));
+	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 
-    ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-    
-    if (!Character || !ASC)
-    {
-       EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-       return;
-    }
+	if (!Character || !ASC)
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
 
-    // 1. 기 모으기 효과 제거 및 발사 효과 실행
-    if (ChargeCueTag.IsValid()) { ASC->RemoveGameplayCue(ChargeCueTag); }
-    if (FireCueTag.IsValid()) { ASC->ExecuteGameplayCue(FireCueTag); }
+	if (ChargeCueTag.IsValid()) { ASC->RemoveGameplayCue(ChargeCueTag); }
+	if (FireCueTag.IsValid()) { ASC->ExecuteGameplayCue(FireCueTag); }
 
-    // 2. 데미지 설정
-    FGameplayEffectSpecHandle DamageSpecHandle;
-    if (DamageEffectClass)
-    {
-        // 1. 컨텍스트 생성 및 가해자 설정
-        FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
-        ContextHandle.AddInstigator(Character, Character); // 가해자를 시전자 캐릭터로 명시
+	FGameplayEffectSpecHandle DamageSpecHandle;
+	float FinalDamageAmount = 20.0f; // 안전장치 기본값
 
-        // 2. 컨텍스트를 포함하여 스펙 생성
-        DamageSpecHandle = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
-        if (DamageSpecHandle.IsValid())
-        {
-            FGameplayTag DamageTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount"));
-            UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(DamageSpecHandle, DamageTag, AbilityDamage);
-        }
-    }
+	// 🌟 [핵심] Data Asset에서 대미지 정보를 동적으로 가져와서 컨텍스트(Context)를 조립합니다.
+	FFuriSkillData SkillData;
+	if (GetCurrentSkillData(SkillData))
+	{
+		FFuriDamageInfo DamageInfo = SkillData.DamageInfo;
+		FinalDamageAmount = DamageInfo.Amount;
 
-    // 3. 투사체 소환 (정면 1m 지점)
-    if (ProjectileClass)
-    {
-       FVector ForwardVector = Character->GetActorForwardVector();
-       FVector SpawnLocation = Character->GetActorLocation() + (ForwardVector * 100.f) + FVector(0.f, 0.f, 50.f);
-       FRotator SpawnRotation = Character->GetActorRotation();
-    
-       FActorSpawnParameters SpawnParams;
-       SpawnParams.Owner = Character;
-       SpawnParams.Instigator = Character;
-       SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
-       AAuraBladeProjectile* Projectile = GetWorld()->SpawnActor<AAuraBladeProjectile>(
-          ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
-       
-       if (Projectile)
-       {
-          Projectile->Initialize(AbilityDamage, 1.0f, DamageSpecHandle, HitCueTag);
-          UE_LOG(LogTemp, Warning, TEXT("[AuraBlade] 투사체 생성 성공!"));
-       }
-    }
+		// BaseDamageEffectClass를 사용하여 Spec 생성
+		if (BaseDamageEffectClass)
+		{
+			// 엔진 표준 방식으로 컨텍스트 생성 (new 방식을 대체)
+			FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
+			ContextHandle.AddInstigator(Character, Character);
 
-    // 4. 모든 시퀀스 종료
-    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+			// 커스텀 컨텍스트에 정보 심기
+			if (FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle))
+			{
+				FuriContext->SetDamageInfo(DamageInfo);
+			}
+
+			DamageSpecHandle = MakeOutgoingGameplayEffectSpec(BaseDamageEffectClass, GetAbilityLevel());
+
+			if (DamageSpecHandle.IsValid())
+			{
+				// 생성된 Spec에 컨텍스트를 덮어씌우고, SetByCaller 주입 (음수)
+				DamageSpecHandle.Data.Get()->SetContext(ContextHandle);
+				DamageSpecHandle.Data.Get()->SetSetByCallerMagnitude(
+					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), -FinalDamageAmount);
+			}
+		}
+	}
+
+	// 투사체 소환
+	if (ProjectileClass)
+	{
+		FVector ForwardVector = Character->GetActorForwardVector();
+		FVector SpawnLocation = Character->GetActorLocation() + (ForwardVector * 100.f) + FVector(0.f, 0.f, 50.f);
+		FRotator SpawnRotation = Character->GetActorRotation();
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = Character;
+		SpawnParams.Instigator = Character;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		AAuraBladeProjectile* Projectile = GetWorld()->SpawnActor<AAuraBladeProjectile>(
+			ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+
+		if (Projectile)
+		{
+			// 🌟 Data Asset에서 가져온 실제 대미지와 완벽하게 조립된 Spec 전달
+			Projectile->Initialize(FinalDamageAmount, 1.0f, DamageSpecHandle, HitCueTag);
+		}
+	}
+
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
-
