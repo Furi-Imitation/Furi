@@ -9,27 +9,6 @@
 void AFuriGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 1. 위젯 생성 및 뷰포트 추가
-	if (StartUIClass)
-	{
-		StartUIInstance = CreateWidget<UUserWidget>(GetWorld(), StartUIClass);
-		if (StartUIInstance)
-		{
-			StartUIInstance->AddToViewport();
-
-			// 2. 플레이어 컨트롤러 설정 (마우스 및 입력 모드)
-			APlayerController* PC = GetWorld()->GetFirstPlayerController();
-			if (PC)
-			{
-				// UI에 포커스를 주고 마우스 커서를 보이게 함
-				FInputModeUIOnly InputMode;
-				InputMode.SetWidgetToFocus(StartUIInstance->TakeWidget());
-				PC->SetInputMode(InputMode);
-				PC->bShowMouseCursor = true;
-			}
-		}
-	}
 }
 
 UClass* AFuriGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)

@@ -2,7 +2,6 @@
 
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/FuriGameHUDWidget.h"
@@ -24,7 +23,13 @@ void AFuriPlayerController::BeginPlay()
 	if (IsLocalPlayerController())
 	{
 		// ==========================================
-		// 1. 카메라 초기화 세팅
+		// 마우스 및 입력 모드를 '게임 전용'으로 복구
+		// ==========================================
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+		bShowMouseCursor = false; // 마우스 커서 숨기기
+		// ==========================================
+		// 카메라 초기화 세팅
 		// ==========================================
 		TArray<AActor*> FoundCameras;
 		UGameplayStatics::GetAllActorsWithTag(GetWorld(), FName("MainCamera"), FoundCameras);
