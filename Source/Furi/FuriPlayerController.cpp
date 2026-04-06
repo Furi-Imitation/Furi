@@ -6,6 +6,7 @@
 #include "GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/FuriGameHUDWidget.h"
+#include "SSR/UI/EndUI.h"
 
 AFuriPlayerController::AFuriPlayerController()
 {
@@ -43,24 +44,29 @@ void AFuriPlayerController::BeginPlay()
 		// 2. UI (HUD) 생성 및 데이터 연동
 		// ==========================================
 		// 2. UI 생성 및 내 캐릭터 연동 (기존 동일)
-		if (MainHUDWidgetClass)
-		{
-			MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
-			if (MainHUDWidget)
-			{
-				MainHUDWidget->AddToViewport();
-
-				if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
-				{
-					MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
-				}
-
-				// 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
-				// 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
-				GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this,
-				                                &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
-			}
-		}
+		
+		
+		// startui랑 겹쳐서 나오는중
+		
+		// if (MainHUDWidgetClass)
+		// {
+		// 	MainHUDWidget = CreateWidget<UFuriGameHUDWidget>(this, MainHUDWidgetClass);
+		// 	if (MainHUDWidget)
+		// 	{
+		// 		MainHUDWidget->AddToViewport();
+		//
+		// 		if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
+		// 		{
+		// 			MainHUDWidget->InitPlayerStats(MyChar->GetAbilitySystemComponent());
+		// 		}
+		//
+		// 		// 여기서 맵을 한 번만 뒤지는 대신, 타이머를 가동합니다!
+		// 		// 0.5초마다 TryFindEnemyForHUD 함수를 반복 실행합니다.
+		// 		GetWorldTimerManager().SetTimer(EnemySearchTimerHandle, this,
+		// 		                                &AFuriPlayerController::TryFindEnemyForHUD, 0.5f, true);
+		// 	}
+		// }
+		// --------------------------------------------
 	}
 }
 
@@ -211,4 +217,53 @@ void AFuriPlayerController::TryFindEnemyForHUD()
 			break;
 		}
 	}
+}
+
+
+// 승리 패배 ui
+void AFuriPlayerController::ShowGameEndUI(bool bVictory)
+{
+	UE_LOG(LogTemp, Warning, TEXT("ShowGameEndUI Attempt..."));
+
+	if (!EndUIClass) 
+	{
+		UE_LOG(LogTemp, Error, TEXT("EndUIClass is STILL NULL! Check BP again!"));
+		return;
+	}
+
+	if (EndUIClass)
+	{
+		EndUIInstance = CreateWidget<UEndUI>(this, EndUIClass);
+		if (EndUIInstance)
+		{
+			EndUIInstance->AddToViewport(100); // 다른 UI보다 앞에 나오도록 높은 우선순위
+            
+			// C++에서 만든 함수 호출 (내부적으로 블루프린트 이벤트 OnGameResultDetermined 실행)
+			EndUIInstance->SetGameResult(bVictory);
+			
+			UE_LOG(LogTemp, Warning, TEXT("EndUIInstance Added to Viewport!"))
+			
+
+			// 마우스 커서를 보이게 하고 UI에 포커스를 맞춥니다.
+			FInputModeUIOnly InputMode;
+			InputMode.SetWidgetToFocus(EndUIInstance->TakeWidget());
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+            
+			SetInputMode(InputMode);
+			bShowMouseCursor = true;
+
+			// 게임의 움직임을 멈추고 싶다면 아래 주석을 해제하세요.
+			// UGameplayStatics::SetGamePaused(GetWorld(), true);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to Create EndUIInstance!"));
+	}
+}
+
+void AFuriPlayerController::Client_ShowGameEndUI_Implementation(bool bVictory)
+{
+	// 이 코드는 이제 각 플레이어의 '진짜 자기 컴퓨터'에서만 실행됩니다.
+	ShowGameEndUI(bVictory);
 }

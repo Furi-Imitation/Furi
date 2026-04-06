@@ -68,4 +68,23 @@ protected:
 
 	// 🌟 적을 찾아서 UI에 연결 시도하는 함수
 	void TryFindEnemyForHUD();
+	
+
+protected:
+    // 에디터(BP_FuriPlayerController)에서 WBP_EndUI를 선택할 변수
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<class UEndUI> EndUIClass;
+
+    // 생성된 UI 인스턴스를 보관할 포인터
+    UPROPERTY()
+    class UEndUI* EndUIInstance;
+
+public:
+    // 외부(캐릭터 사망 등)에서 호출할 게임 종료 함수
+    void ShowGameEndUI(bool bVictory);
+	
+	// NetMulticast나 Client 키워드를 사용하여 서버가 클라이언트에게 명령하게 합니다.
+	UFUNCTION(Client, Reliable)
+	void Client_ShowGameEndUI(bool bVictory);
+	
 };

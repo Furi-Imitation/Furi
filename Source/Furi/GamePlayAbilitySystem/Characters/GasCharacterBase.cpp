@@ -4,6 +4,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Furi/FuriPlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "Furi/utils/FuriTypes.h"
@@ -304,6 +305,8 @@ void AGasCharacterBase::StopHitStop()
 // 서버(또는 로컬)에서 사망 판정이 났을 때 실행되는 메인 함수
 void AGasCharacterBase::Die()
 {
+	UE_LOG(LogTemp, Error, TEXT("==== [DIE] %s has entered Die() ===="), *GetName());
+	
 	if (!AbilitySystemComponent)
 	{
 		return;
@@ -327,6 +330,35 @@ void AGasCharacterBase::Die()
 	Multicast_Die();
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] 사망했습니다!"), *GetName());
+	
+	// ==========================================
+	// 4. 게임 종료 UI 호출 로직 추가
+	// ==========================================
+    
+	if (HasAuthority()) // 서버에서만 판단합니다.
+	{
+		AController* MyController = GetController();
+        
+		// 1. 죽은 게 플레이어라면 -> 그 플레이어에게 "패배" 전달
+		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(MyController))
+		{
+			PC->Client_ShowGameEndUI(false);
+		}
+        
+		// 2. 적이 죽었다면 -> 월드의 모든 플레이어에게 "승리" 전달
+		// (1대1 게임이라면 상대방만 찾아서 보내면 됩니다)
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (AFuriPlayerController* OtherPC = Cast<AFuriPlayerController>(It->Get()))
+			{
+				// 죽은 본인이 아닌 사람들에게만 승리라고 알려줌
+				if (OtherPC != MyController)
+				{
+					OtherPC->Client_ShowGameEndUI(true);
+				}
+			}
+		}
+	}
 }
 
 // 모든 클라이언트의 화면에서 동일하게 처리되는 시각적/물리적 사망 처리
