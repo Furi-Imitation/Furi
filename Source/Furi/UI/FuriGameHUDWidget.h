@@ -37,14 +37,8 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Text_GameTime;
 
-	// [내 캐릭터 스킬 컨테이너]
 	UPROPERTY(meta = (BindWidget))
 	UHorizontalBox* Box_SkillContainer;
-
-	// 🌟 [적 캐릭터 스킬 컨테이너 추가!]
-	// WBP에서 적 스킬을 띄울 Horizontal Box를 만들고 이름을 똑같이 맞춰주세요.
-	UPROPERTY(meta = (BindWidget))
-	UHorizontalBox* Box_EnemySkillContainer;
 
 	void OnPlayerHealthChanged(const FOnAttributeChangeData& Data);
 	void OnPlayerStaminaChanged(const FOnAttributeChangeData& Data);

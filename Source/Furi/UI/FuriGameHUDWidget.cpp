@@ -78,9 +78,6 @@ void UFuriGameHUDWidget::InitEnemyStats(UAbilitySystemComponent* InEnemyASC)
 		this, &UFuriGameHUDWidget::OnEnemyHealthChanged);
 	EnemyASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetStaminaAttribute()).AddUObject(
 		this, &UFuriGameHUDWidget::OnEnemyStaminaChanged);
-
-	// 🌟 적 캐릭터의 DataAsset을 읽어와서 Box_EnemySkillContainer에 채웁니다.
-	UpdateSkillUI(EnemyASC.Get(), Box_EnemySkillContainer);
 }
 
 // 🌟 스킬 위젯 동적 생성 헬퍼 함수

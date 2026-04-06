@@ -10,7 +10,6 @@ void UFuriSkillIconWidget::InitSkillWidget(const FFuriSkillData& SkillData, UAbi
 	ASC = InASC;
 	CooldownTag = SkillData.CooldownTag;
 
-	// 1. 스태미나 텍스트 설정
 	if (Text_StaminaCost)
 	{
 		Text_StaminaCost->SetText(FText::AsNumber(FMath::RoundToInt(SkillData.StaminaCost)));
@@ -18,23 +17,26 @@ void UFuriSkillIconWidget::InitSkillWidget(const FFuriSkillData& SkillData, UAbi
 
 	if (SkillData.SkillIcon)
 	{
-		// 2. 어두운 배경 아이콘 설정
+		// 1. 어두운 배경 아이콘 설정
 		if (Image_BackgroundIcon)
 		{
 			Image_BackgroundIcon->SetBrushFromTexture(SkillData.SkillIcon);
 			Image_BackgroundIcon->SetColorAndOpacity(FLinearColor(0.2f, 0.2f, 0.2f, 1.0f));
 		}
 
-		// 차오르는 프로그레스 바의 이미지도 스킬 이미지로 덮어씌웁니다!
+		// 2. 🌟 차오르는 프로그레스 바 이미지 렌더링 규칙 수정
 		if (PB_CooldownOverlay)
 		{
-			// 프로그레스 바의 현재 스타일 세팅을 복사해 옵니다.
 			FProgressBarStyle Style = PB_CooldownOverlay->GetWidgetStyle();
 
-			// Fill Image (차오르는 부분)에 스킬 아이콘 텍스처를 꽂아 넣습니다.
+			// Fill Image 세팅
 			Style.FillImage.SetResourceObject(SkillData.SkillIcon);
+			// 🌟 [핵심 1] 박스 형태가 아니라 순수 이미지로 그리도록 강제 설정
+			Style.FillImage.DrawAs = ESlateBrushDrawType::Image;
 
-			// 변경된 스타일을 다시 프로그레스 바에 적용합니다.
+			// 🌟 [핵심 2] 프로그레스 바 자체의 회색 배경이 아이콘을 가리지 않게 아예 꺼버림
+			Style.BackgroundImage.DrawAs = ESlateBrushDrawType::NoDrawType;
+
 			PB_CooldownOverlay->SetWidgetStyle(Style);
 		}
 	}
