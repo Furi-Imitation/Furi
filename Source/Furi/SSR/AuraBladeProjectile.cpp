@@ -12,6 +12,8 @@
 // Sets default values
 AAuraBladeProjectile::AAuraBladeProjectile()
 {
+	
+	
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
 	RootComponent = CollisionComp;
 	
@@ -38,7 +40,8 @@ AAuraBladeProjectile::AAuraBladeProjectile()
 	
 	// 네트워크 복제 설정
 	bReplicates = true;
-	
+	SetReplicateMovement(true);
+		
 }
 
 void AAuraBladeProjectile::Initialize(float InDamage, float InChargeRatio, FGameplayEffectSpecHandle InSpecHandle, FGameplayTag InHitTag)
@@ -66,11 +69,12 @@ void AAuraBladeProjectile::Tick(float DeltaTime)
 
 void AAuraBladeProjectile::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	
+	UE_LOG(LogTemp, Error, TEXT("DEBUG: Overlap Detected with %s on Server!"), OtherActor ? *OtherActor->GetName() : TEXT("None"));
 	//서버에서만 실행되도록 보장
 	if (!HasAuthority() || !OtherActor)
 		return;
 	
-	UE_LOG(LogTemp, Error, TEXT("Something Overlapped: %s"), OtherActor ? *OtherActor->GetName() : TEXT("None"));
 	
 	// 1. 자기 자신(발사체)이나 발사한 본인(Instigator)은 무시
 	if (OtherActor == nullptr || OtherActor == GetInstigator())

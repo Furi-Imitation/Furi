@@ -20,6 +20,8 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
                                     const FGameplayAbilityActivationInfo ActivationInfo,
                                     const FGameplayEventData* TriggerEventData)
 {
+	
+	
 	// 🌟 [수정] 부모 클래스의 스태미나 코스트 및 쿨타임 결제 확인 (최상단 배치)
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -28,6 +30,9 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	
+	// 🌟 추가: 버튼을 떼도 어빌리티가 취소되지 않도록 강제 설정
+	bRetriggerInstancedAbility = false;
 
 	if (ChargeMontage)
 	{
@@ -41,11 +46,16 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	{
 		return;
 	}
-
+	// 🔍 로그 추가: 서버/클라이언트 양쪽에서 찍히는지 확인
+	UE_LOG(LogTemp, Warning, TEXT("ActivateAbility - IsServer: %d"), ASC->IsOwnerActorAuthoritative());
 	if (ChargeCueTag.IsValid())
 	{
 		ASC->AddGameplayCue(ChargeCueTag);
 	}
+	
+	// 🔍 서버에서 DelayTime이 얼마인지 확인!
+	UE_LOG(LogTemp, Warning, TEXT("DelayTime Check - IsServer: %d, Value: %f"), 
+		   ASC->IsOwnerActorAuthoritative(), DelayTime);
 
 	UAbilityTask_WaitDelay* DelayTask = UAbilityTask_WaitDelay::WaitDelay(this, DelayTime);
 	if (DelayTask)
@@ -55,80 +65,85 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 	else
 	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		// EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 	}
+}
+
+void USSRAuraBlade::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+	UE_LOG(LogTemp, Error, TEXT("=== SERVER END ABILITY DETECTED ==="));
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void USSRAuraBlade::OnDelayFinished()
 {
 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!Character) return;
 
-	if (!Character || !ASC)
-	{
-		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-		return;
-	}
+	// 🌟 1. 일단 큐(이펙트)부터 무조건 실행해서 함수가 도는지 확인
+	GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(FireCueTag);
 
-	if (ChargeCueTag.IsValid()) { ASC->RemoveGameplayCue(ChargeCueTag); }
-	if (FireCueTag.IsValid()) { ASC->ExecuteGameplayCue(FireCueTag); }
-
-	FGameplayEffectSpecHandle DamageSpecHandle;
-	float FinalDamageAmount = 20.0f; // 안전장치 기본값
-
-	// 🌟 [핵심] Data Asset에서 대미지 정보를 동적으로 가져와서 컨텍스트(Context)를 조립합니다.
-	FFuriSkillData SkillData;
-	if (GetCurrentSkillData(SkillData))
-	{
-		FFuriDamageInfo DamageInfo = SkillData.DamageInfo;
-		FinalDamageAmount = DamageInfo.Amount;
-
-		// BaseDamageEffectClass를 사용하여 Spec 생성
-		if (BaseDamageEffectClass)
-		{
-			// 엔진 표준 방식으로 컨텍스트 생성 (new 방식을 대체)
-			FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
-			ContextHandle.AddInstigator(Character, Character);
-
-			// 커스텀 컨텍스트에 정보 심기
-			if (FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle))
-			{
-				FuriContext->SetDamageInfo(DamageInfo);
-			}
-
-			DamageSpecHandle = MakeOutgoingGameplayEffectSpec(BaseDamageEffectClass, GetAbilityLevel());
-
-			if (DamageSpecHandle.IsValid())
-			{
-				// 생성된 Spec에 컨텍스트를 덮어씌우고, SetByCaller 주입 (음수)
-				DamageSpecHandle.Data.Get()->SetContext(ContextHandle);
-				DamageSpecHandle.Data.Get()->SetSetByCallerMagnitude(
-					FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), -FinalDamageAmount);
-			}
-		}
-	}
-
-	// 투사체 소환
+	// 🌟 2. 조건문 없이 그냥 스폰 (서버라면 엔진이 알아서 생성하고 복제함)
 	if (ProjectileClass)
 	{
-		FVector ForwardVector = Character->GetActorForwardVector();
-		FVector SpawnLocation = Character->GetActorLocation() + (ForwardVector * 100.f) + FVector(0.f, 0.f, 50.f);
-		FRotator SpawnRotation = Character->GetActorRotation();
-
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = Character;
 		SpawnParams.Instigator = Character;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		AAuraBladeProjectile* Projectile = GetWorld()->SpawnActor<AAuraBladeProjectile>(
-			ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+		FVector SpawnLocation = Character->GetActorLocation() + (Character->GetActorForwardVector() * 150.f) + FVector(0.f, 0.f, 50.f);
+        
+		// 🔍 로그 레벨을 Error로 올려서 무조건 보이게 합니다.
+		UE_LOG(LogTemp, Error, TEXT("--- FORCE SPAWN ATTEMPT ---"));
 
-		if (Projectile)
-		{
-			// 🌟 Data Asset에서 가져온 실제 대미지와 완벽하게 조립된 Spec 전달
-			Projectile->Initialize(FinalDamageAmount, 1.0f, DamageSpecHandle, HitCueTag);
-		}
+		GetWorld()->SpawnActor<AAuraBladeProjectile>(ProjectileClass, SpawnLocation, Character->GetActorRotation(), SpawnParams);
 	}
 
+	// 🌟 3. 종료를 '지연' 시켜서 리플리케이션 시간을 벌어줍니다 (테스트용)
+	// EndAbility를 호출하지 않거나, 아주 나중에 호출되게 해보세요.
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
+
+// void USSRAuraBlade::OnDelayFinished()
+// {
+// 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+// 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+//
+// 	if (!Character || !ASC)
+// 	{
+// 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+// 		return;
+// 	}
+//
+// 	// 시각 효과는 양쪽 다 실행
+// 	if (ChargeCueTag.IsValid()) { ASC->RemoveGameplayCue(ChargeCueTag); }
+// 	if (FireCueTag.IsValid()) { ASC->ExecuteGameplayCue(FireCueTag); }
+//
+// 	// 🌟 [핵심] 아무런 조건문 없이 바로 Spawn 시도
+// 	if (ProjectileClass)
+// 	{
+// 		FVector ForwardVector = Character->GetActorForwardVector();
+// 		FVector SpawnLocation = Character->GetActorLocation() + (ForwardVector * 150.f) + FVector(0.f, 0.f, 50.f);
+// 		FRotator SpawnRotation = Character->GetActorRotation();
+//
+// 		FActorSpawnParameters SpawnParams;
+// 		SpawnParams.Owner = Character;
+// 		SpawnParams.Instigator = Character;
+// 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+//
+// 		// 서버에서 실행될 때만 액터가 생성되고, 리플리케이션 설정에 의해 클라이언트로 복제됩니다.
+// 		AAuraBladeProjectile* Projectile = GetWorld()->SpawnActor<AAuraBladeProjectile>(
+// 			ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+//
+// 		if (Projectile)
+// 		{
+// 			UE_LOG(LogTemp, Warning, TEXT("!!! PROJECTILE SPAWNED !!!"));
+//             
+// 			// 대미지 로직 (최소한의 안전장치)
+// 			FGameplayEffectSpecHandle DamageSpecHandle = MakeOutgoingGameplayEffectSpec(BaseDamageEffectClass, GetAbilityLevel());
+// 			Projectile->Initialize(20.0f, 1.0f, DamageSpecHandle, HitCueTag);
+// 		}
+// 	}
+//
+// 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+// }
