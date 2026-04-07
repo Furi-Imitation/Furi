@@ -5,22 +5,19 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Furi/SSR/AuraBladeProjectile.h"
 #include "GameFramework/Character.h"
-#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h" // 🌟 커스텀 컨텍스트를 위해 추가
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 
 USSRAuraBlade::USSRAuraBlade()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-
-	// 🚨 [수정] CDO 크래시 주범 제거! 블루프린트 디테일 패널의 'Activation Owned Tags'에 State.SkillUsing을 추가하세요.
-	// ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.SkillUsing")));
 }
 
 void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                                     const FGameplayAbilityActivationInfo ActivationInfo,
                                     const FGameplayEventData* TriggerEventData)
 {
-	// 🌟 [수정] 부모 클래스의 스태미나 코스트 및 쿨타임 결제 확인 (최상단 배치)
+	// 부모 클래스의 스태미나 코스트 및 쿨타임 결제 확인
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
