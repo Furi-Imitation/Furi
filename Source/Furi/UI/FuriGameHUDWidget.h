@@ -48,9 +48,17 @@ protected:
 	// 🌟 스킬 아이콘을 동적으로 생성해서 컨테이너에 넣는 재사용 함수
 	void UpdateSkillUI(UAbilitySystemComponent* TargetASC, UHorizontalBox* TargetContainer);
 
+public:
+	// 타이머 시작 함수
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void StartGameTimer();
+
 private:
 	TWeakObjectPtr<UAbilitySystemComponent> PlayerASC;
 	TWeakObjectPtr<UAbilitySystemComponent> EnemyASC;
+
+	bool bIsTimerRunning = false;
+	float GameStartTime = 0.f;
 
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

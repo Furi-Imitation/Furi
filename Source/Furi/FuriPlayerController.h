@@ -18,7 +18,7 @@ class FURI_API AFuriPlayerController : public APlayerController
 public:
 	AFuriPlayerController();
 
-	void SetCinematicMode(bool bEnabled, AActor* TargetActor = nullptr);
+	void SetFuriCinematicMode(bool bEnabled, AActor* TargetActor = nullptr);
 
 	UFUNCTION(Client, Reliable)
 	void Client_SetCinematicCamera(bool bEnabled, AActor* CameraSource);
@@ -27,11 +27,37 @@ public:
 
 	void Client_ShowFightUI();
 
+	UFUNCTION(Client, Reliable)
+	void Client_ShowReadyStartUI();
+
+	UFUNCTION(Server, Reliable)
+	void Server_NotifyReadyToFight();
+
+	UFUNCTION(Client, Reliable)
+	void Client_StartGameHUDTimer();
+
+	// 🌟 카메라 페이드를 제어하기 위한 RPC
+	UFUNCTION(Client, Reliable)
+	void Client_FadeCamera(bool bFadeOut, float Duration);
+
+	// 🌟 클라이언트에서 캐릭터 및 시네마틱 요소를 숨기기 위한 RPC
+	UFUNCTION(Client, Reliable)
+	void Client_SetActorHidden(AActor* TargetActor, bool bShouldHide);
+
+	UFUNCTION(Client, Reliable)
+	void Client_SetCinematicActorsHidden(bool bShouldHide);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void PlayerTick(float DeltaTime) override;
 
 private:
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<class UReadyStartWidget> ReadyStartWidgetClass;
+
+	UPROPERTY()
+	class UReadyStartWidget* ReadyStartWidgetInstance;
+
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraInterpSpeed = 7.0f;
 	UPROPERTY(EditAnywhere, Category = "Camera")

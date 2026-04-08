@@ -133,7 +133,7 @@ void USSRFinal::ProcessPhysicalHit()
 
 			if (AFuriPlayerController* pc = Cast<AFuriPlayerController>(CurrentActorInfo->PlayerController.Get()))
 			{
-				pc->SetCinematicMode(true, TargetChar);
+				pc->SetFuriCinematicMode(true, TargetChar);
 			}
 
 			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.7f);
@@ -239,7 +239,7 @@ void USSRFinal::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
 
 	if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(CurrentActorInfo->PlayerController.Get()))
 	{
-		PC->SetCinematicMode(false, nullptr);
+		PC->SetFuriCinematicMode(false, nullptr);
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

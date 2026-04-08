@@ -148,7 +148,7 @@ void UGA_Ultimate::ProcessPhysicalHit()
 
 			if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(CurrentActorInfo->PlayerController.Get()))
 			{
-				PC->SetCinematicMode(true, ClosestTarget);
+				PC->SetFuriCinematicMode(true, ClosestTarget);
 			}
 
 			UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.3f);
@@ -254,7 +254,7 @@ void UGA_Ultimate::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGa
 
 	if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(CurrentActorInfo->PlayerController.Get()))
 	{
-		PC->SetCinematicMode(false, nullptr);
+		PC->SetFuriCinematicMode(false, nullptr);
 	}
 
 	if (GrabbedTarget)

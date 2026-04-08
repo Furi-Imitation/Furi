@@ -20,7 +20,13 @@ public:
 	// 컨트롤러에 따라 어떤 폰(Pawn) 클래스를 줄지 결정하는 함수입니다.
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 
+	// 폰 스폰 시 충돌 설정을 강제하기 위해 오버라이드
+	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
+
 	AFuriGameMode();
+
+	// 플레이어들이 ReadyStart를 마치면 호출될 함수 (서버)
+	void EndIntroAndStartFight();
 
 protected:
 	// 플레이어 스폰 위치 정해주는 함수
@@ -53,7 +59,7 @@ private:
 
 	// 🌟 시퀀스 재생이 완료되면 자동으로 호출될 함수
 	UFUNCTION()
-	void EndIntroAndStartFight();
+	void OnCinematicFinished();
 
 	// 시퀀스 플레이어 관리용 변수
 	UPROPERTY()

@@ -12,14 +12,24 @@ void UFuriGameHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (Text_GameTime && GetWorld())
+	if (Text_GameTime && bIsTimerRunning && GetWorld())
 	{
-		int32 TotalSeconds = FMath::FloorToInt(GetWorld()->GetTimeSeconds());
+		float ElapsedTime = GetWorld()->GetTimeSeconds() - GameStartTime;
+		int32 TotalSeconds = FMath::FloorToInt(ElapsedTime);
 		int32 Minutes = TotalSeconds / 60;
 		int32 Seconds = TotalSeconds % 60;
 
 		FString TimeString = FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
 		Text_GameTime->SetText(FText::FromString(TimeString));
+	}
+}
+
+void UFuriGameHUDWidget::StartGameTimer()
+{
+	if (GetWorld())
+	{
+		bIsTimerRunning = true;
+		GameStartTime = GetWorld()->GetTimeSeconds();
 	}
 }
 

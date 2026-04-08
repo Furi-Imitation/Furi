@@ -1,10 +1,12 @@
 ﻿#include "FuriPlayerController.h"
 
+#include "FuriGameMode.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/Character.h"
 #include "GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/FuriGameHUDWidget.h"
+#include "UI/ReadyStartWidget.h"
 #include "SSR/UI/EndUI.h"
 
 AFuriPlayerController::AFuriPlayerController()
@@ -22,6 +24,12 @@ void AFuriPlayerController::BeginPlay()
 	// 현재 기기를 조작하는 로컬 플레이어인지 확인합니다. (멀티플레이어 환경 대비)
 	if (IsLocalPlayerController())
 	{
+		// 🌟 [추가] 레벨 로딩 직후 화면을 즉시 검게 덮습니다. (시네마틱 대기 중)
+		if (PlayerCameraManager)
+		{
+			PlayerCameraManager->StartCameraFade(1.f, 1.f, 0.01f, FLinearColor::Black, true, true);
+		}
+
 		// ==========================================
 		// 마우스 및 입력 모드를 '게임 전용'으로 복구
 		// ==========================================
@@ -38,8 +46,9 @@ void AFuriPlayerController::BeginPlay()
 		{
 			MainCameraActor = FoundCameras[0];
 
-			// 게임이 시작되면 플레이어의 시선을 이 메인 카메라로 즉시 설정합니다.
-			SetViewTargetWithBlend(MainCameraActor);
+			// ❌ [수정] 게임이 시작되자마자 플레이어 시선을 이 메인 카메라로 설정하는 코드를 제거합니다.
+			// 대신 등장 시네마틱이 끝난 후(Client_ShowReadyStartUI)에 설정하도록 변경합니다.
+			// SetViewTargetWithBlend(MainCameraActor);
 
 			// 시네마틱 연출 후 원래 구도로 복구하기 위해 초기 회전값을 저장해 둡니다.
 			DefaultMainCameraRotation = MainCameraActor->GetActorRotation();
@@ -58,6 +67,9 @@ void AFuriPlayerController::BeginPlay()
 			if (MainHUDWidget)
 			{
 				MainHUDWidget->AddToViewport();
+				
+				// 🌟 [추가] 시네마틱 중에는 HUD를 보이지 않게 합니다.
+				MainHUDWidget->SetVisibility(ESlateVisibility::Collapsed);
 
 				if (AGasCharacterBase* MyChar = Cast<AGasCharacterBase>(GetPawn()))
 				{
@@ -143,7 +155,85 @@ void AFuriPlayerController::Client_ShowFightUI()
 	UE_LOG(LogTemp, Log, TEXT("[UI] Fight"));
 }
 
-void AFuriPlayerController::SetCinematicMode(bool bEnabled, AActor* TargetActor)
+void AFuriPlayerController::Client_ShowReadyStartUI_Implementation()
+{
+	// 1. 시네마틱이 끝났으므로 메인 카메라로 전환합니다.
+	if (MainCameraActor)
+	{
+		SetViewTargetWithBlend(MainCameraActor, 0.5f, VTBlend_Cubic);
+	}
+
+	if (ReadyStartWidgetClass)
+	{
+		ReadyStartWidgetInstance = CreateWidget<UReadyStartWidget>(this, ReadyStartWidgetClass);
+		if (ReadyStartWidgetInstance)
+		{
+			ReadyStartWidgetInstance->AddToViewport();
+			
+			// 🌟 2. 블루프린트 애니메이션 재생 이벤트를 명시적으로 호출합니다.
+			ReadyStartWidgetInstance->PlayReadyStartAnimation();
+		}
+	}
+}
+
+void AFuriPlayerController::Server_NotifyReadyToFight_Implementation()
+{
+	if (AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->EndIntroAndStartFight();
+	}
+}
+
+void AFuriPlayerController::Client_StartGameHUDTimer_Implementation()
+{
+	if (MainHUDWidget)
+	{
+		// 🌟 전투가 시작될 때 HUD를 다시 보이게 합니다.
+		MainHUDWidget->SetVisibility(ESlateVisibility::Visible);
+		MainHUDWidget->StartGameTimer();
+	}
+}
+
+void AFuriPlayerController::Client_SetActorHidden_Implementation(AActor* TargetActor, bool bShouldHide)
+{
+	if (TargetActor)
+	{
+		TargetActor->SetActorHiddenInGame(bShouldHide);
+	}
+}
+
+void AFuriPlayerController::Client_FadeCamera_Implementation(bool bFadeOut, float Duration)
+{
+	if (PlayerCameraManager)
+	{
+		if (bFadeOut)
+		{
+			// 검게 만들기 (투명 -> 불투명)
+			PlayerCameraManager->StartCameraFade(0.f, 1.f, Duration, FLinearColor::Black, true, true);
+		}
+		else
+		{
+			// 밝게 만들기 (불투명 -> 투명)
+			PlayerCameraManager->StartCameraFade(1.f, 0.f, Duration, FLinearColor::Black, false, false);
+		}
+	}
+}
+
+void AFuriPlayerController::Client_SetCinematicActorsHidden_Implementation(bool bShouldHide)
+{
+	TArray<AActor*> CinematicActors;
+	UGameplayStatics::GetAllActorsWithTag(GetWorld(), FName("Cinematic"), CinematicActors);
+	for (AActor* Actor : CinematicActors)
+	{
+		if (Actor)
+		{
+			Actor->SetActorHiddenInGame(bShouldHide);
+			Actor->SetActorEnableCollision(!bShouldHide);
+		}
+	}
+}
+
+void AFuriPlayerController::SetFuriCinematicMode(bool bEnabled, AActor* TargetActor)
 {
 	// 🌟 서버에서 각 클라이언트의 PC에게 카메라 변경을 명령합니다.
 	if (!HasAuthority())

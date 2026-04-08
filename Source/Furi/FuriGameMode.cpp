@@ -7,18 +7,33 @@
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
 #include "MovieSceneSequencePlaybackSettings.h"
+#include "Engine/PostProcessVolume.h"
 #include "GameFramework/PlayerStart.h"
 #include "GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/ConstructorHelpers.h"
 
 AFuriGameMode::AFuriGameMode()
 {
 	SpawnedPlayerCount = 0;
+
+	// 🌟 경로 형식을 표준 방식으로 수정합니다.
+	static ConstructorHelpers::FObjectFinder<ULevelSequence> IntroSeq(TEXT("/Game/Cinematics/Sequences/StartCinematic/StartCinematicRoot"));
+	if (IntroSeq.Succeeded())
+	{
+		IntroSequenceAsset = IntroSeq.Object;
+		UE_LOG(LogTemp, Log, TEXT("[GameMode] IntroSequenceAsset 로드 성공!"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GameMode] IntroSequenceAsset 로드 실패! 경로를 확인하세요."));
+	}
 }
 
 void AFuriGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	UE_LOG(LogTemp, Log, TEXT("[GameMode] BeginPlay 시작. 플레이어 대기 중..."));
 	GetWorld()->GetTimerManager().SetTimer(CheckPlayersTimerHandle, this, &AFuriGameMode::CheckAllPlayersReady, 0.5f,
 	                                       true);
 }
@@ -34,6 +49,22 @@ UClass* AFuriGameMode::GetDefaultPawnClassForController_Implementation(AControll
 
 	// 2. 그 외 접속자(클라이언트)에게는 다른 클래스를 반환
 	return ClientClass;
+}
+
+APawn* AFuriGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform)
+{
+	// 🌟 스폰 시 충돌을 무시하고 강제로 생성하도록 설정합니다 (AlwaysSpawn).
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnParams.Instigator = GetInstigator();
+
+	UClass* PawnClass = GetDefaultPawnClassForController(NewPlayer);
+	if (PawnClass)
+	{
+		return GetWorld()->SpawnActor<APawn>(PawnClass, SpawnTransform, SpawnParams);
+	}
+
+	return nullptr;
 }
 
 AActor* AFuriGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -89,12 +120,20 @@ void AFuriGameMode::StartIntroSequence()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[GameMode] 등장 시퀀스 시작!"));
 
-	// 1. 모든 플레이어의 조작을 잠급니다 (Lock 태그 부여)
+	// 1. 모든 플레이어의 조작을 잠그고 캐릭터를 숨깁니다.
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get());
 		if (PC && PC->GetPawn())
 		{
+			// 🌟 카메라 페이드 아웃 (검은 화면 -> 밝음)
+			PC->Client_FadeCamera(false, 1.0f);
+
+			// 서버에서 숨김
+			PC->GetPawn()->SetActorHiddenInGame(true);
+			// 🌟 클라이언트에서도 숨기도록 명령
+			PC->Client_SetActorHidden(PC->GetPawn(), true);
+
 			AGasCharacterBase* Character = Cast<AGasCharacterBase>(PC->GetPawn());
 			if (Character && Character->GetAbilitySystemComponent())
 			{
@@ -122,8 +161,8 @@ void AFuriGameMode::StartIntroSequence()
 			SequenceActor->SetReplicates(true);
 			SequenceActor->bReplicatePlayback = true;
 
-			// 시퀀스가 끝나는 순간 EndIntroAndStartFight 함수가 자동으로 실행되도록 묶어줍니다(Bind).
-			IntroSequencePlayer->OnFinished.AddDynamic(this, &AFuriGameMode::EndIntroAndStartFight);
+			// 시퀀스가 끝나는 순간 OnCinematicFinished 함수가 자동으로 실행되도록 묶어줍니다(Bind).
+			IntroSequencePlayer->OnFinished.AddDynamic(this, &AFuriGameMode::OnCinematicFinished);
 
 			// 재생 시작!
 			IntroSequencePlayer->Play();
@@ -133,26 +172,85 @@ void AFuriGameMode::StartIntroSequence()
 	{
 		// 안전장치: 블루프린트에 시퀀스를 안 넣었다면 딜레이 없이 바로 전투 시작
 		UE_LOG(LogTemp, Error, TEXT("[GameMode] IntroSequenceAsset이 없습니다! 바로 게임을 시작합니다."));
-		EndIntroAndStartFight();
+		OnCinematicFinished();
+	}
+}
+
+void AFuriGameMode::OnCinematicFinished()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[GameMode] 시퀀스 종료! 캐릭터 표시 및 ReadyStart 표시"));
+
+	// 1. 서버 및 클라이언트에서 플레이어 캐릭터를 다시 보이게 합니다.
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get());
+		if (PC && PC->GetPawn())
+		{
+			// 서버에서 보이기
+			PC->GetPawn()->SetActorHiddenInGame(false);
+			// 클라이언트에서도 보이도록 명령
+			PC->Client_SetActorHidden(PC->GetPawn(), false);
+		}
+	}
+
+	// 2. 서버에서 시네마틱 요소 숨김
+	TArray<AActor*> CinematicActors;
+	UGameplayStatics::GetAllActorsWithTag(GetWorld(), FName("Cinematic"), CinematicActors);
+	for (AActor* Actor : CinematicActors)
+	{
+		if (Actor)
+		{
+			Actor->SetActorHiddenInGame(true);
+			Actor->SetActorEnableCollision(false);
+		}
+	}
+
+	// 3. 모든 클라이언트에게도 시네마틱 요소를 숨기도록 명령 (RPC) 및 UI 표시
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get()))
+		{
+			PC->Client_SetCinematicActorsHidden(true);
+			PC->Client_ShowReadyStartUI();
+		}
+	}
+
+	// 3. Level에 있는 PostProcessVolume의 infinite Extent를 true로 변경
+	TArray<AActor*> FoundPPVs;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APostProcessVolume::StaticClass(), FoundPPVs);
+	for (AActor* Actor : FoundPPVs)
+	{
+		if (APostProcessVolume* PPV = Cast<APostProcessVolume>(Actor))
+		{
+			PPV->bUnbound = true; // Infinite Extent
+		}
 	}
 }
 
 void AFuriGameMode::EndIntroAndStartFight()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GameMode] 시퀀스 종료! FIGHT!"));
+	UE_LOG(LogTemp, Warning, TEXT("[GameMode] ReadyStart 종료! FIGHT!"));
 
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get());
 		if (PC && PC->GetPawn())
 		{
+			// 🌟 서버에서 보이기
+			PC->GetPawn()->SetActorHiddenInGame(false);
+			// 🌟 클라이언트에서도 보이도록 명령
+			PC->Client_SetActorHidden(PC->GetPawn(), false);
+
 			// 1. 플레이어 화면에 FIGHT! UI 팝업
 			PC->Client_ShowFightUI();
+			
+			// 2. HUD 타이머 시작
+			PC->Client_StartGameHUDTimer();
 
 			AGasCharacterBase* Character = Cast<AGasCharacterBase>(PC->GetPawn());
 			if (Character && Character->GetAbilitySystemComponent())
 			{
-				// 2. 조작 잠금 해제 -> 이제 전투 가능!
+				// 3. 조작 잠금 해제 -> 이제 전투 가능!
 				Character->GetAbilitySystemComponent()->RemoveLooseGameplayTag(
 					FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 			}
