@@ -343,6 +343,16 @@ void AFuriPlayerController::ShowGameEndUI(bool bVictory)
 		{
 			EndUIInstance->AddToViewport(100); // 다른 UI보다 앞에 나오도록 높은 우선순위
 
+			// 🌟 1. 블루프린트에서 만든 페이드 인 애니메이션 실행
+			EndUIInstance->PlayFadeInAnimation();
+
+			// 🌟 2. 배경을 부드럽게 어둡게 만듭니다 (Blend-In 효과 보조)
+			if (PlayerCameraManager)
+			{
+				// 현재 상태에서 0.5 투명도의 검은색으로 1초 동안 페이드
+				PlayerCameraManager->StartCameraFade(0.f, 0.5f, 1.0f, FLinearColor::Black, false, false);
+			}
+
 			// C++에서 만든 함수 호출 (내부적으로 블루프린트 이벤트 OnGameResultDetermined 실행)
 			EndUIInstance->SetGameResult(bVictory);
 

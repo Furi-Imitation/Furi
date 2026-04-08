@@ -17,6 +17,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Game Result")
 	void OnGameResultDetermined(bool bIsVictory);
 
+	// 🌟 블루프린트에서 페이드 인 애니메이션을 구현할 이벤트
+	UFUNCTION(BlueprintImplementableEvent, Category = "Game Result")
+	void PlayFadeInAnimation();
+
 protected:
 	virtual bool Initialize() override;
 
