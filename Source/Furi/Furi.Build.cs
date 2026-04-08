@@ -11,7 +11,7 @@ public class Furi : ModuleRules
 		PublicDependencyModuleNames.AddRange(new[]
 		{
 			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
-			"GameplayAbilities", "GameplayTags", "GameplayTasks", "UMG", "Niagara"
+			"GameplayAbilities", "GameplayTags", "GameplayTasks", "UMG", "Niagara", "LevelSequence", "MovieScene"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

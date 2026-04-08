@@ -14,22 +14,23 @@ UCLASS()
 class FURI_API AFuriPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-    
+
 public:
 	AFuriPlayerController();
-    
+
 	void SetCinematicMode(bool bEnabled, AActor* TargetActor = nullptr);
-	
+
 	UFUNCTION(Client, Reliable)
 	void Client_SetCinematicCamera(bool bEnabled, AActor* CameraSource);
 
 	void UpdateStandardCamera(float DeltaTime);
-	
+
+	void Client_ShowFightUI();
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void PlayerTick(float DeltaTime) override;
-    
+
 private:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraInterpSpeed = 7.0f;
@@ -53,7 +54,7 @@ private:
 
 	// 복구용 기본값
 	FRotator DefaultMainCameraRotation;
-	
+
 protected:
 	//HUD 생성
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
@@ -62,29 +63,27 @@ protected:
 	// 🌟 실제로 화면에 띄워진 위젯의 메모리를 쥐고 있을 포인터
 	UPROPERTY(Transient)
 	TObjectPtr<UFuriGameHUDWidget> MainHUDWidget;
-	
+
 	// 🌟 적 탐색을 위한 타이머 핸들
 	FTimerHandle EnemySearchTimerHandle;
 
 	// 🌟 적을 찾아서 UI에 연결 시도하는 함수
 	void TryFindEnemyForHUD();
-	
 
-protected:
-    // 에디터(BP_FuriPlayerController)에서 WBP_EndUI를 선택할 변수
-    UPROPERTY(EditAnywhere, Category = "UI")
-    TSubclassOf<class UEndUI> EndUIClass;
 
-    // 생성된 UI 인스턴스를 보관할 포인터
-    UPROPERTY()
-    class UEndUI* EndUIInstance;
+	// 에디터(BP_FuriPlayerController)에서 WBP_EndUI를 선택할 변수
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<class UEndUI> EndUIClass;
+
+	// 생성된 UI 인스턴스를 보관할 포인터
+	UPROPERTY()
+	class UEndUI* EndUIInstance;
 
 public:
-    // 외부(캐릭터 사망 등)에서 호출할 게임 종료 함수
-    void ShowGameEndUI(bool bVictory);
-	
+	// 외부(캐릭터 사망 등)에서 호출할 게임 종료 함수
+	void ShowGameEndUI(bool bVictory);
+
 	// NetMulticast나 Client 키워드를 사용하여 서버가 클라이언트에게 명령하게 합니다.
 	UFUNCTION(Client, Reliable)
 	void Client_ShowGameEndUI(bool bVictory);
-	
 };

@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "FuriGameMode.generated.h"
 
+class ULevelSequence;
+class ULevelSequencePlayer;
 /**
  * 
  */
@@ -39,6 +41,23 @@ protected:
 	UPROPERTY()
 	class UUserWidget* StartUIInstance; // 생성된 위젯 저장용
 
+	// 블루프린트에서 설정할 시퀀스 에셋
+	UPROPERTY(EditDefaultsOnly, Category = "Furi|Cinematic")
+	ULevelSequence* IntroSequenceAsset;
+
 private:
+	FTimerHandle CheckPlayersTimerHandle;
+	void CheckAllPlayersReady();
+
+	void StartIntroSequence();
+
+	// 🌟 시퀀스 재생이 완료되면 자동으로 호출될 함수
+	UFUNCTION()
+	void EndIntroAndStartFight();
+
+	// 시퀀스 플레이어 관리용 변수
+	UPROPERTY()
+	ULevelSequencePlayer* IntroSequencePlayer;
+
 	int32 SpawnedPlayerCount = 0;
 };
