@@ -41,7 +41,6 @@ AAuraBladeProjectile::AAuraBladeProjectile()
 	// 네트워크 복제 설정
 	bReplicates = true;
 	SetReplicateMovement(true);
-		
 }
 
 void AAuraBladeProjectile::Initialize(float InDamage, float InChargeRatio, FGameplayEffectSpecHandle InSpecHandle, FGameplayTag InHitTag)

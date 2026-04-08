@@ -2,12 +2,14 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Furi/FuriPlayerController.h"
+#include "Furi/FuriBlueprintFunctionLibrary.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "Furi/utils/FuriTypes.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 UGA_Ultimate::UGA_Ultimate()
 {
@@ -29,6 +31,22 @@ void UGA_Ultimate::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 
 	bFirstHitSuccess = false;
 	CurrentHitCount = 0;
+
+	// 🌟 [추가] 시전 시 가장 가까운 적을 바라보도록 회전
+	if (AActor* MyAvatar = GetAvatarActorFromActorInfo())
+	{
+		// 3000.f 반경 내에서 가장 가까운 적을 찾습니다.
+		AActor* ClosestTarget = UFuriBlueprintFunctionLibrary::FindClosestTarget(MyAvatar, 3000.f, TArray<AActor*>());
+		if (ClosestTarget)
+		{
+			FVector TargetLocation = ClosestTarget->GetActorLocation();
+			FVector MyLocation = MyAvatar->GetActorLocation();
+			TargetLocation.Z = MyLocation.Z; // 높이 차이 무시
+
+			FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(MyLocation, TargetLocation);
+			MyAvatar->SetActorRotation(LookAtRot);
+		}
+	}
 
 	// 1. 타격 이벤트 대기
 	if (HitEventTag.IsValid())

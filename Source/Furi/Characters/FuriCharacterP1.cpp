@@ -8,6 +8,7 @@
 #include "Furi/Weapons/WeaponDataAsset.h"
 #include "Furi/Weapons/WeaponManagerComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 
 // Sets default values
@@ -101,41 +102,41 @@ void AFuriCharacterP1::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void AFuriCharacterP1::Move(const FInputActionValue& Value)
 {
-	// 캐릭터에게 AbilityLock 태그가 있다면 이동 입력을 즉시 리턴(무시)합니다.
+	// 캐릭터에게 AbilityLock 또는 Dead 태그가 있다면 이동 입력을 즉시 리턴(무시)합니다.
 	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Lock"))) ||
 		GetAbilitySystemComponent()->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Dead"))))
 	{
 		return;
 	}
+
 	FVector2D MovementVector = Value.Get<FVector2D>();
-	// 방어 중이면 이동 불가
-	if (AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(
-		FGameplayTag::RequestGameplayTag(FName("State.Blocking"))))
+
+	if (Controller != nullptr)
 	{
-		// 로그를 찍어서 진짜로 여기서 막히는지 확인해 봅시다.
-		UE_LOG(LogTemp, Warning, TEXT("Block Tag Detected! Movement Canceled."));
-		return;
-	}
+		// 🌟 [수정 전] 보통 Controller->GetControlRotation()을 사용하셨을 겁니다.
+		// 🌟 [수정 후] 카메라의 회전값을 기준으로 가져옵니다!
+        
+		FRotator Rotation = FRotator::ZeroRotator;
 
-	// 카메라의 Yaw 회전값을 기준으로 이동 방향 결정 (하늘에서 내려다보는 기준)
-	const FRotator Rotation = Controller->GetControlRotation();
-	const FRotator YawRotation(0, Rotation.Yaw, 0);
+		if (APlayerController* PC = Cast<APlayerController>(Controller))
+		{
+			// 현재 화면을 비추고 있는 카메라(MainCameraActor)의 정보를 가져옵니다.
+			if (AActor* CameraActor = PC->GetViewTarget())
+			{
+				Rotation = CameraActor->GetActorRotation();
+			}
+		}
 
-	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		// 카메라의 Z축(Yaw) 회전값만 남겨서 바닥과 평행한 방향을 구합니다.
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-	// 실제 이동 입력
-	AddMovementInput(ForwardDirection, MovementVector.Y);
-	AddMovementInput(RightDirection, MovementVector.X);
+		// 카메라가 바라보는 '앞'과 '오른쪽' 방향을 계산합니다.
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-	// 🌟 [키보드 방향 회전] 입력한 방향으로 캐릭터 몸 돌리기
-	FVector InputDirection = (ForwardDirection * MovementVector.Y) + (RightDirection * MovementVector.X);
-
-	if (!InputDirection.IsNearlyZero())
-	{
-		FRotator TargetRotation = InputDirection.Rotation();
-		// 15.0f는 회전 속도입니다. 수치가 높을수록 즉각적으로 돌아봅니다.
-		SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, GetWorld()->GetDeltaSeconds(), 15.0f));
+		// 입력받은 값에 따라 이동을 적용합니다.
+		AddMovementInput(ForwardDirection, MovementVector.Y); // W, S 입력
+		AddMovementInput(RightDirection, MovementVector.X);   // A, D 입력
 	}
 }
 

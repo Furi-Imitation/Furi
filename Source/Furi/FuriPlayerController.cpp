@@ -138,6 +138,11 @@ void AFuriPlayerController::UpdateStandardCamera(float DeltaTime)
 	MainCameraActor->SetActorLocation(NextLoc);
 }
 
+void AFuriPlayerController::Client_ShowFightUI()
+{
+	UE_LOG(LogTemp, Log, TEXT("[UI] Fight"));
+}
+
 void AFuriPlayerController::SetCinematicMode(bool bEnabled, AActor* TargetActor)
 {
 	// 🌟 서버에서 각 클라이언트의 PC에게 카메라 변경을 명령합니다.

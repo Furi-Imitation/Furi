@@ -21,7 +21,7 @@ protected:
 	UFUNCTION()
 	void OnDelayFinished();
 
-	// 복잡한 Map 대신, 단 하나의 대미지 전용 공용 GE를 사용합니다. (Set by Caller 연동용)
+	// 대미지 전용 공용 GE를 사용합니다. (Set by Caller 연동용)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Damage")
 	TSubclassOf<class UGameplayEffect> BaseDamageEffectClass;
 

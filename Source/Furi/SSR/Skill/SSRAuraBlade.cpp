@@ -5,24 +5,18 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Furi/SSR/AuraBladeProjectile.h"
 #include "GameFramework/Character.h"
-#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h" // 🌟 커스텀 컨텍스트를 위해 추가
+#include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 
 USSRAuraBlade::USSRAuraBlade()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-
-	// 🚨 [수정] CDO 크래시 주범 제거! 블루프린트 디테일 패널의 'Activation Owned Tags'에 State.SkillUsing을 추가하세요.
-	// ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.SkillUsing")));
 }
 
 void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                                     const FGameplayAbilityActivationInfo ActivationInfo,
                                     const FGameplayEventData* TriggerEventData)
 {
-	
-	
-	// 🌟 [수정] 부모 클래스의 스태미나 코스트 및 쿨타임 결제 확인 (최상단 배치)
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -77,31 +71,115 @@ void USSRAuraBlade::EndAbility(const FGameplayAbilitySpecHandle Handle, const FG
 
 void USSRAuraBlade::OnDelayFinished()
 {
-	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	if (!Character) return;
+    ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 
-	// 🌟 1. 일단 큐(이펙트)부터 무조건 실행해서 함수가 도는지 확인
-	GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(FireCueTag);
+    if (!Character || !ASC)
+    {
+       EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+       return;
+    }
 
-	// 🌟 2. 조건문 없이 그냥 스폰 (서버라면 엔진이 알아서 생성하고 복제함)
-	if (ProjectileClass)
-	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = Character;
-		SpawnParams.Instigator = Character;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    // ========================================================================
+    // 1. [시각 연출] GameplayCue 실행 (로컬 예측)
+    // ========================================================================
+    // Local Predicted 정책이므로, 이 부분은 클라이언트와 서버 양쪽에서 독립적으로 실행됩니다.
+    // 클라이언트가 서버의 허락을 기다리지 않고 즉시 효과음을 재생하므로 조작감이 매우 부드럽습니다.
+    if (ChargeCueTag.IsValid()) { ASC->RemoveGameplayCue(ChargeCueTag); }
+    if (FireCueTag.IsValid()) { ASC->ExecuteGameplayCue(FireCueTag); }
 
-		FVector SpawnLocation = Character->GetActorLocation() + (Character->GetActorForwardVector() * 150.f) + FVector(0.f, 0.f, 50.f);
-        
-		// 🔍 로그 레벨을 Error로 올려서 무조건 보이게 합니다.
-		UE_LOG(LogTemp, Error, TEXT("--- FORCE SPAWN ATTEMPT ---"));
+    FGameplayEffectSpecHandle DamageSpecHandle;
+    float FinalDamageAmount = 20.0f; // 안전장치 기본값
 
-		GetWorld()->SpawnActor<AAuraBladeProjectile>(ProjectileClass, SpawnLocation, Character->GetActorRotation(), SpawnParams);
-	}
+    // ========================================================================
+    // 2. [데이터 준비] Data Asset 기반 대미지 동적 컨텍스트 조립
+    // ========================================================================
+    FFuriSkillData SkillData;
+    if (GetCurrentSkillData(SkillData))
+    {
+       FFuriDamageInfo DamageInfo = SkillData.DamageInfo;
+       FinalDamageAmount = DamageInfo.Amount;
 
-	// 🌟 3. 종료를 '지연' 시켜서 리플리케이션 시간을 벌어줍니다 (테스트용)
-	// EndAbility를 호출하지 않거나, 아주 나중에 호출되게 해보세요.
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+       if (BaseDamageEffectClass)
+       {
+          // 대상에게 누가 대미지를 입혔는지 추적하기 위한 컨텍스트(Context) 생성
+          FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
+          ContextHandle.AddInstigator(Character, Character);
+
+          // Furi 프로젝트 전용 커스텀 컨텍스트에 넉백, 스턴 등의 세부 DamageInfo 구조체를 심습니다.
+          if (FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(ContextHandle))
+          {
+             FuriContext->SetDamageInfo(DamageInfo);
+          }
+
+          DamageSpecHandle = MakeOutgoingGameplayEffectSpec(BaseDamageEffectClass, GetAbilityLevel());
+
+          if (DamageSpecHandle.IsValid())
+          {
+             DamageSpecHandle.Data.Get()->SetContext(ContextHandle);
+             
+             // 🌟 [안전장치] 기획자가 Data Asset에 20을 적든 -20을 적든, 
+             // 절댓값(Abs)을 씌우고 -를 붙여 무조건 체력이 깎이는 데미지(음수)로 강제 변환합니다.
+             float SafeDamage = -FMath::Abs(FinalDamageAmount);
+             DamageSpecHandle.Data.Get()->SetSetByCallerMagnitude(
+                FGameplayTag::RequestGameplayTag(FName("Data.Damage.Amount")), SafeDamage);
+          }
+       }
+       else
+       {
+           UE_LOG(LogTemp, Error, TEXT("[USSRAuraBlade] BaseDamageEffectClass가 None입니다! 블루프린트 할당 요망."));
+       }
+    }
+    else
+    {
+       UE_LOG(LogTemp, Error, TEXT("[USSRAuraBlade] DataAsset 로드 실패! 블루프린트의 Ability Tags를 확인하세요."));
+    }
+
+    // ========================================================================
+    // 3. [투사체 소환] 오직 권한을 가진 "서버"에서만 진짜 물리 액터를 스폰!
+    // ========================================================================
+    // 클라이언트가 가짜 투사체를 만들어서 서버의 진짜 투사체와 충돌(이중 스폰 버그)하는 것을 막습니다.
+    const bool bIsServer = GetOwningActorFromActorInfo()->HasAuthority();
+    
+    if (bIsServer)
+    {
+        if (ProjectileClass)
+        {
+           FVector ForwardVector = Character->GetActorForwardVector();
+           // 캐릭터 앞쪽으로 100, 위쪽으로 50 떨어진 위치에서 스폰하여 캐릭터 몸통과 즉시 부딪히는 것을 방지
+           FVector SpawnLocation = Character->GetActorLocation() + (ForwardVector * 100.f) + FVector(0.f, 0.f, 50.f);
+           FRotator SpawnRotation = Character->GetActorRotation();
+
+           FActorSpawnParameters SpawnParams;
+           SpawnParams.Owner = Character;
+           SpawnParams.Instigator = Character;
+           SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+           // 오직 서버만 이 투사체를 스폰합니다. 
+           // 투사체 액터 내부의 bReplicates = true 설정 덕분에 클라이언트 화면에도 자동으로 생성되어 날아갑니다.
+           AAuraBladeProjectile* Projectile = GetWorld()->SpawnActor<AAuraBladeProjectile>(
+              ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+
+           if (Projectile)
+           {
+              // Data Asset에서 가져온 실제 대미지와 완벽하게 조립된 Effect Spec을 투사체에 장전합니다.
+              Projectile->Initialize(FMath::Abs(FinalDamageAmount), 1.0f, DamageSpecHandle, HitCueTag);
+           }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[USSRAuraBlade] ProjectileClass가 None입니다! 블루프린트에서 투사체를 할당하세요."));
+        }
+    }
+
+    // ========================================================================
+    // 4. [스킬 종료] 클라이언트의 서버 암살 방지 동기화
+    // ========================================================================
+    // 네 번째 인자(bReplicateEndAbility)에 bIsServer를 넣은 것이 핵심입니다.
+    // 클라이언트는 0.8초가 지나면 조용히 혼자 스킬을 종료합니다 (false).
+    // 서버는 0.8초가 지나고 투사체를 무사히 스폰한 뒤, 모든 클라이언트에게 "스킬 진짜 끝났다!"라고 방송합니다 (true).
+    // 이렇게 해야 클라이언트가 핑 차이로 미세하게 먼저 끝나서 서버의 투사체 스폰을 취소시켜버리는 버그를 막을 수 있습니다.
+    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bIsServer, false);
 }
 
 // void USSRAuraBlade::OnDelayFinished()

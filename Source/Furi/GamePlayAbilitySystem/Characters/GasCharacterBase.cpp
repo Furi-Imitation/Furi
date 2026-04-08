@@ -306,7 +306,7 @@ void AGasCharacterBase::StopHitStop()
 void AGasCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Error, TEXT("==== [DIE] %s has entered Die() ===="), *GetName());
-	
+
 	if (!AbilitySystemComponent)
 	{
 		return;
@@ -330,21 +330,21 @@ void AGasCharacterBase::Die()
 	Multicast_Die();
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] 사망했습니다!"), *GetName());
-	
+
 	// ==========================================
 	// 4. 게임 종료 UI 호출 로직 추가
 	// ==========================================
-    
+
 	if (HasAuthority()) // 서버에서만 판단합니다.
 	{
 		AController* MyController = GetController();
-        
+
 		// 1. 죽은 게 플레이어라면 -> 그 플레이어에게 "패배" 전달
 		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(MyController))
 		{
 			PC->Client_ShowGameEndUI(false);
 		}
-        
+
 		// 2. 적이 죽었다면 -> 월드의 모든 플레이어에게 "승리" 전달
 		// (1대1 게임이라면 상대방만 찾아서 보내면 됩니다)
 		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
