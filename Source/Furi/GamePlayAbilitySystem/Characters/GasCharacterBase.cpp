@@ -51,7 +51,6 @@ AGasCharacterBase::AGasCharacterBase()
 	UltCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("UltCamera"));
 	UltCamera->SetupAttachment(UltSpringArm, USpringArmComponent::SocketName);
 	UltCamera->bUsePawnControlRotation = false;
-	UltCamera->bAutoActivate = false;
 }
 
 void AGasCharacterBase::BeginPlay()
