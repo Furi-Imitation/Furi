@@ -123,11 +123,28 @@ public:
 	// 🌟 AttributeSet에서 체력이 0이 되었을 때 호출할 사망 함수
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	virtual void Die();
+	
+	// 🌟 이 함수들을 추가해야 Controller에서 호출할 수 있습니다.
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void PlayVictoryMontage();
+	
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void PlayDeathMontage();
+	
+	UFUNCTION()
+	void OnFinishMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	bool bIsWinningSequence = false;
 protected:
 	// 사망 애니메이션 몽타주
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Montages")
 	UAnimMontage* DeathMontage;
+	
+	// 승리 애니메이션 몽타주
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Montages")
+	UAnimMontage* VictoryMontage;
+	
+	
 
 	// 모든 클라이언트에서 사망 처리 (애니메이션, 물리 비활성화 등)
 	UFUNCTION(NetMulticast, Reliable)

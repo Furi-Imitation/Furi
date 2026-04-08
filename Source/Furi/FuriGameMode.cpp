@@ -159,3 +159,44 @@ void AFuriGameMode::EndIntroAndStartFight()
 		}
 	}
 }
+
+// 0408 추가 작업중
+
+void AFuriGameMode::ProcessMatchEnd(AGasCharacterBase* Winner, AGasCharacterBase* Loser)
+{
+	CachedWinner = Winner;
+	CachedLoser = Loser;
+	
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get()))
+		{
+			PC->Client_PlayFinishingSequence(Loser,false);
+		}
+	}
+}
+
+void AFuriGameMode::OnDeathAnimationFinished()
+{
+	
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get()))
+		{
+			PC->Client_PlayFinishingSequence(CachedWinner, true);
+		}
+	}
+}
+
+void AFuriGameMode::OnVictoryAnimationFinished()
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get()))
+		{
+			bool bIsWinner = (PC->GetPawn() == CachedWinner);
+			PC->Client_FinalShowUI(bIsWinner);
+		}
+	}
+}
+
