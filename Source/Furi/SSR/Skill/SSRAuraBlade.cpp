@@ -17,7 +17,6 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
                                     const FGameplayAbilityActivationInfo ActivationInfo,
                                     const FGameplayEventData* TriggerEventData)
 {
-	// 부모 클래스의 스태미나 코스트 및 쿨타임 결제 확인
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -25,6 +24,9 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	
+	// 🌟 추가: 버튼을 떼도 어빌리티가 취소되지 않도록 강제 설정
+	bRetriggerInstancedAbility = false;
 
 	if (ChargeMontage)
 	{
@@ -38,11 +40,16 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	{
 		return;
 	}
-
+	// 🔍 로그 추가: 서버/클라이언트 양쪽에서 찍히는지 확인
+	UE_LOG(LogTemp, Warning, TEXT("ActivateAbility - IsServer: %d"), ASC->IsOwnerActorAuthoritative());
 	if (ChargeCueTag.IsValid())
 	{
 		ASC->AddGameplayCue(ChargeCueTag);
 	}
+	
+	// 🔍 서버에서 DelayTime이 얼마인지 확인!
+	UE_LOG(LogTemp, Warning, TEXT("DelayTime Check - IsServer: %d, Value: %f"), 
+		   ASC->IsOwnerActorAuthoritative(), DelayTime);
 
 	UAbilityTask_WaitDelay* DelayTask = UAbilityTask_WaitDelay::WaitDelay(this, DelayTime);
 	if (DelayTask)
@@ -52,8 +59,14 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 	else
 	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		// EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 	}
+}
+
+void USSRAuraBlade::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+	UE_LOG(LogTemp, Error, TEXT("=== SERVER END ABILITY DETECTED ==="));
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void USSRAuraBlade::OnDelayFinished()
@@ -168,3 +181,47 @@ void USSRAuraBlade::OnDelayFinished()
     // 이렇게 해야 클라이언트가 핑 차이로 미세하게 먼저 끝나서 서버의 투사체 스폰을 취소시켜버리는 버그를 막을 수 있습니다.
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bIsServer, false);
 }
+
+// void USSRAuraBlade::OnDelayFinished()
+// {
+// 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+// 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+//
+// 	if (!Character || !ASC)
+// 	{
+// 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+// 		return;
+// 	}
+//
+// 	// 시각 효과는 양쪽 다 실행
+// 	if (ChargeCueTag.IsValid()) { ASC->RemoveGameplayCue(ChargeCueTag); }
+// 	if (FireCueTag.IsValid()) { ASC->ExecuteGameplayCue(FireCueTag); }
+//
+// 	// 🌟 [핵심] 아무런 조건문 없이 바로 Spawn 시도
+// 	if (ProjectileClass)
+// 	{
+// 		FVector ForwardVector = Character->GetActorForwardVector();
+// 		FVector SpawnLocation = Character->GetActorLocation() + (ForwardVector * 150.f) + FVector(0.f, 0.f, 50.f);
+// 		FRotator SpawnRotation = Character->GetActorRotation();
+//
+// 		FActorSpawnParameters SpawnParams;
+// 		SpawnParams.Owner = Character;
+// 		SpawnParams.Instigator = Character;
+// 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+//
+// 		// 서버에서 실행될 때만 액터가 생성되고, 리플리케이션 설정에 의해 클라이언트로 복제됩니다.
+// 		AAuraBladeProjectile* Projectile = GetWorld()->SpawnActor<AAuraBladeProjectile>(
+// 			ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+//
+// 		if (Projectile)
+// 		{
+// 			UE_LOG(LogTemp, Warning, TEXT("!!! PROJECTILE SPAWNED !!!"));
+//             
+// 			// 대미지 로직 (최소한의 안전장치)
+// 			FGameplayEffectSpecHandle DamageSpecHandle = MakeOutgoingGameplayEffectSpec(BaseDamageEffectClass, GetAbilityLevel());
+// 			Projectile->Initialize(20.0f, 1.0f, DamageSpecHandle, HitCueTag);
+// 		}
+// 	}
+//
+// 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+// }
