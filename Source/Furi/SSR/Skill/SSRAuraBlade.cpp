@@ -4,6 +4,7 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Furi/SSR/AuraBladeProjectile.h"
+#include "Furi/FuriBlueprintFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 
@@ -136,9 +137,23 @@ void USSRAuraBlade::OnDelayFinished()
     }
 
     // ========================================================================
-    // 3. [투사체 소환] 오직 권한을 가진 "서버"에서만 진짜 물리 액터를 스폰!
+    // 3. [타겟팅 및 투사체 소환] 
     // ========================================================================
-    // 클라이언트가 가짜 투사체를 만들어서 서버의 진짜 투사체와 충돌(이중 스폰 버그)하는 것을 막습니다.
+    
+    // 가장 가까운 적을 찾아 그 방향으로 회전합니다. (클라이언트/서버 공통 연출)
+    TArray<AActor*> ActorsToIgnore;
+    AActor* ClosestTarget = UFuriBlueprintFunctionLibrary::FindClosestTarget(Character, 1500.0f, ActorsToIgnore);
+    if (ClosestTarget)
+    {
+        FVector LookDir = ClosestTarget->GetActorLocation() - Character->GetActorLocation();
+        LookDir.Z = 0.f;
+        if (!LookDir.IsNearlyZero())
+        {
+            Character->SetActorRotation(LookDir.Rotation());
+        }
+    }
+
+    // 오직 권한을 가진 "서버"에서만 진짜 물리 액터를 스폰!
     const bool bIsServer = GetOwningActorFromActorInfo()->HasAuthority();
     
     if (bIsServer)

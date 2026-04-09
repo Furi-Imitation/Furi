@@ -6,6 +6,7 @@
 #include "TimerManager.h"
 #include "Engine/OverlapResult.h"
 #include "DrawDebugHelpers.h"
+#include "Furi/FuriBlueprintFunctionLibrary.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "GameFramework/Character.h"
@@ -32,6 +33,22 @@ void USSRSunFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	}
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	// 가장 가까운 적을 찾아 그 방향으로 회전합니다. (클라이언트/서버 공통 연출)
+	if (AActor* MyAvatar = GetAvatarActorFromActorInfo())
+	{
+		TArray<AActor*> ActorsToIgnore;
+		AActor* ClosestTarget = UFuriBlueprintFunctionLibrary::FindClosestTarget(MyAvatar, Radius, ActorsToIgnore);
+		if (ClosestTarget)
+		{
+			FVector LookDir = ClosestTarget->GetActorLocation() - MyAvatar->GetActorLocation();
+			LookDir.Z = 0.f;
+			if (!LookDir.IsNearlyZero())
+			{
+				MyAvatar->SetActorRotation(LookDir.Rotation());
+			}
+		}
+	}
 
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (ASC)

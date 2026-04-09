@@ -7,8 +7,8 @@
 UBasicAttributeSet::UBasicAttributeSet()
 {
 	// 캐릭터가 처음 생성될 때 가질 기본 스탯들입니다.
-	Health = 500.f;
-	MaxHealth = 500.f;
+	Health = 1000.f;
+	MaxHealth = 1000.f;
 	Stamina = 100.f;
 	MaxStamina = 100.f;
 }
@@ -39,7 +39,10 @@ void UBasicAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute,
 
 bool UBasicAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCallbackData& Data)
 {
-	if (!Super::PreGameplayEffectExecute(Data)) return false;
+	if (!Super::PreGameplayEffectExecute(Data))
+	{
+		return false;
+	}
 
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
@@ -49,7 +52,7 @@ bool UBasicAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCallb
 			UAbilitySystemComponent* TargetASC = &Data.Target;
 			FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
 			FFuriGameplayEffectContext* FuriContext = FFuriGameplayEffectContext::GetFuriContext(Context);
-			
+
 			bool bIsInvincible = false;
 			bool bIsBlocked = false;
 
@@ -58,13 +61,15 @@ bool UBasicAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCallb
 				const FFuriDamageInfo& DamageInfo = FuriContext->GetDamageInfo();
 
 				// 1. 무적 체크
-				if (TargetASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible"))) && !DamageInfo.bShouldDamageInvincible)
+				if (TargetASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Invincible"))) && !
+					DamageInfo.bShouldDamageInvincible)
 				{
 					bIsInvincible = true;
 				}
 
 				// 2. 방어 체크
-				if (!bIsInvincible && TargetASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking"))) && DamageInfo.bCanBeBlocked)
+				if (!bIsInvincible && TargetASC->HasMatchingGameplayTag(
+					FGameplayTag::RequestGameplayTag(FName("State.Blocking"))) && DamageInfo.bCanBeBlocked)
 				{
 					bIsBlocked = true;
 				}
@@ -78,13 +83,14 @@ bool UBasicAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCallb
 				}
 				else if (bIsBlocked)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[BasicAttributeSet] PreExecute: Damage Blocked (Canceling Block Skill)!"));
-					
+					UE_LOG(LogTemp, Warning,
+					       TEXT("[BasicAttributeSet] PreExecute: Damage Blocked (Canceling Block Skill)!"));
+
 					FGameplayTagContainer BlockTags;
 					BlockTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Blocking")));
 					TargetASC->RemoveActiveEffectsWithGrantedTags(BlockTags);
 				}
-				
+
 				return false; // 🛡️ 아예 적용되지 않도록 차단!
 			}
 		}

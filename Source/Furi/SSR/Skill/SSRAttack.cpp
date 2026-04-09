@@ -8,6 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
+#include "Furi/FuriBlueprintFunctionLibrary.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
 #include "Kismet/GameplayStatics.h"
@@ -75,6 +76,12 @@ void USSRAttack::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGa
 	if (bComboWindowOpened && CurrentComboIndex < 7)
 	{
 		bNextComboReserved = true;
+
+		if (AActor* MyAvatar = GetAvatarActorFromActorInfo())
+		{
+			RotateTowardsClosestEnemy(MyAvatar, AttackRange);
+		}
+
 		FName CurrentSection = *FString::Printf(TEXT("Attack%d"), CurrentComboIndex);
 		FName NextSection = *FString::Printf(TEXT(	"Attack%d"), CurrentComboIndex + 1);
 		MontageSetNextSectionName(CurrentSection, NextSection);
@@ -245,5 +252,22 @@ void USSRAttack::OnMontageCompleted()
 
 void USSRAttack::RotateTowardsClosestEnemy(AActor* MyAvatar, float SearchRadius)
 {
-	// 로직 추가 필요 시 구현
+	if (!MyAvatar)
+	{
+		return;
+	}
+
+	TArray<AActor*> ActorsToIgnore;
+	// 🌟 적 탐색 범위를 넉넉하게 (기존 SearchRadius + 3000) 설정
+	AActor* Target = UFuriBlueprintFunctionLibrary::FindClosestTarget(MyAvatar, SearchRadius + 3000.f, ActorsToIgnore);
+
+	if (Target)
+	{
+		FVector LookDir = Target->GetActorLocation() - MyAvatar->GetActorLocation();
+		LookDir.Z = 0.f;
+		if (!LookDir.IsNearlyZero())
+		{
+			MyAvatar->SetActorRotation(LookDir.Rotation());
+		}
+	}
 }

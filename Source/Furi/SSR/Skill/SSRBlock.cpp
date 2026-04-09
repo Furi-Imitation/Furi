@@ -1,131 +1,152 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "SSRBlock.h"
-
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "Abilities/Tasks/AbilityTask_WaitDelay.h"
+#include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEffectRemoved.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 USSRBlock::USSRBlock()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	// 네트워크 예측 설정 (로컬에서 즉시 반응)
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-    
-	// 방어 중에는 이동 방지 등의 태그 설정 가능
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
+
+	// 🌟 [수정] 방어 상태 태그는 BlockEffectClass(GE)를 통해 부여하는 것이 표준입니다.
+	// ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Lock")));
 }
 
 void USSRBlock::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+                                const FGameplayAbilityActivationInfo ActivationInfo,
+                                const FGameplayEventData* TriggerEventData)
 {
-	UE_LOG(LogTemp, Warning, TEXT("=== SSRBlock Start ==="));
-	
-	UE_LOG(LogTemp, Warning, TEXT("Attempting to Commit..."));
+	// 🌟 [수정] 코스트/쿨타임 검사 (GA_Block과 동일하게 수정)
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
-		UE_LOG(LogTemp, Error, TEXT("❌ CommitAbility FAILED! (Cost or Cooldown)"));
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("✅ CommitAbility SUCCESS!"));
-	
+
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	
+
+	bIsEnding = false;
 	bBlockTriggered = false;
+
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	AActor* AvatarActor = GetAvatarActorFromActorInfo(); // 내 캐릭터 가져오기
-	
-	// 블락중 지속될 파란 구체 이펙트
-	if (ASC && AvatarActor && BlockVisualCueTag.IsValid())
-	{
-		FGameplayCueParameters Params;
-		Params.Instigator = AvatarActor;
-		Params.EffectCauser = AvatarActor;
-		// 소유자를 명시적으로 전달하거나 ASC를 통해 대상을 지정합니다
-		ASC->AddGameplayCue(BlockVisualCueTag);
-	}
-	
-	// VFX/SFX 시작 큐
-	if (BlockStartCueTag.IsValid())
-	{
-		ASC->ExecuteGameplayCue(BlockStartCueTag, FGameplayCueParameters());
-	}
-	
-	// 애니메이션 몽타쥬
-	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("Block"), BlockMontage);
-	MontageTask->ReadyForActivation();
-	
-	// 이벤트 방어 성공 이벤트 대기
-	UAbilityTask_WaitGameplayEvent* EventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, FGameplayTag::RequestGameplayTag(FName("Event.Hit.Block")));
-	EventTask->EventReceived.AddDynamic(this, &USSRBlock::OnBlockSuccess);
-	EventTask->ReadyForActivation();
-	
-	// Timer 1초 타임아웃 대기
-	UAbilityTask_WaitDelay* DelayTask = UAbilityTask_WaitDelay::WaitDelay(this, BlockMaxDuration);
-	DelayTask->OnFinish.AddDynamic(this, &USSRBlock::OnBlockTimeout);
-	DelayTask->ReadyForActivation();
-}
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 
-
-void USSRBlock::OnBlockSuccess(FGameplayEventData Payload)
-{
-	if (bBlockTriggered) return;
-	bBlockTriggered = true;
-	
-	DrawDebugSphere(GetWorld(), Payload.Instigator->GetActorLocation(), 50.f, 12, FColor::Red, false, 1.0f);
-	
-	// 적(공격자)에게 기절 효과 부여
-	// Payload.Instigator는 나를 때린 '적'입니다.
-	if (StunEffectClass)
+	if (!ASC || !AvatarActor)
 	{
-		UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Payload.Instigator);
-		if (TargetASC)
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	// 1. 방어 상태(GE) 적용 - GA_Block 방식 적용
+	if (BlockEffectClass)
+	{
+		FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
+		ContextHandle.AddInstigator(AvatarActor, AvatarActor);
+
+		FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(BlockEffectClass, 1.0f, ContextHandle);
+		if (SpecHandle.IsValid())
 		{
-			FGameplayEffectContextHandle Context = TargetASC->MakeEffectContext();
-			Context.AddInstigator(GetAvatarActorFromActorInfo(), GetAvatarActorFromActorInfo());
-			
-			// 기절 이펙트 적용
-			FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(StunEffectClass, 1.0f, Context);
-			if (SpecHandle.IsValid())
-			{
-				TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-			}
+			ActiveBlockEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 		}
 	}
-	
-	// 성공시 즉시 종료
-	EndAbility(CurrentSpecHandle,CurrentActorInfo, CurrentActivationInfo,true, false);
+
+	// 2. Gameplay Cue 실행
+	FGameplayCueParameters Params;
+	Params.Location = AvatarActor->GetActorLocation();
+	Params.Instigator = AvatarActor;
+
+	if (BlockVisualCueTag.IsValid()) { ASC->AddGameplayCue(BlockVisualCueTag); }
+	if (BlockStartCueTag.IsValid()) { ASC->ExecuteGameplayCue(BlockStartCueTag, Params); }
+
+	// 3. 애니메이션 몽타주 재생
+	if (BlockMontage)
+	{
+		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this, TEXT("BlockAni"), BlockMontage);
+		if (MontageTask)
+		{
+			MontageTask->ReadyForActivation();
+		}
+	}
+
+	// 4. 버튼 떼기 대기 (WaitInputRelease)
+	UAbilityTask_WaitInputRelease* InputReleaseTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this);
+	if (InputReleaseTask)
+	{
+		InputReleaseTask->OnRelease.AddDynamic(this, &USSRBlock::OnInputReleased);
+		InputReleaseTask->ReadyForActivation();
+	}
+
+	// 6. 🌟 GE가 외부에서 제거되었을 때를 위한 대기 (GA_Block 방식)
+	if (ActiveBlockEffectHandle.IsValid())
+	{
+		UAbilityTask_WaitGameplayEffectRemoved* WaitEffectTask =
+			UAbilityTask_WaitGameplayEffectRemoved::WaitForGameplayEffectRemoved(this, ActiveBlockEffectHandle);
+		if (WaitEffectTask)
+		{
+			WaitEffectTask->OnRemoved.AddDynamic(this, &USSRBlock::OnBlockEffectRemoved);
+			WaitEffectTask->ReadyForActivation();
+		}
+	}
 }
 
-void USSRBlock::OnBlockTimeout()
+void USSRBlock::OnInputReleased(float TimeHeld)
 {
-	// 이미 방어에 성공했으면 리턴
-	if (bBlockTriggered) return;
-	
-	EndAbility(CurrentSpecHandle,CurrentActorInfo, CurrentActivationInfo,true, false);
+	// 버튼을 떼면 방어 종료
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void USSRBlock::OnBlockEffectRemoved(const FGameplayEffectRemovalInfo& InGameplayEffectRemovalInfo)
+{
+	// 방어 GE가 사라졌을 때 (스태미나 부족 등) 방어 종료
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
 void USSRBlock::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+                           const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+                           bool bWasCancelled)
 {
+	if (bIsEnding)
+	{
+		return;
+	}
+	bIsEnding = true;
+
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	
-	// [추가] 블락 종료 시 구체 이펙트 제거 (Remove)
-	if (BlockVisualCueTag.IsValid() && ASC)
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+
+	if (ASC && AvatarActor)
 	{
-		ASC->RemoveGameplayCue(BlockVisualCueTag);
+		// 1. Gameplay Cue 제거 및 종료 큐 실행
+		if (BlockVisualCueTag.IsValid()) { ASC->RemoveGameplayCue(BlockVisualCueTag); }
+		if (BlockEndCueTag.IsValid())
+		{
+			FGameplayCueParameters Params;
+			Params.Location = AvatarActor->GetActorLocation();
+			Params.Instigator = AvatarActor;
+			ASC->ExecuteGameplayCue(BlockEndCueTag, Params);
+		}
+
+		// 2. 몽타주 중지
+		if (BlockMontage)
+		{
+			ASC->CurrentMontageStop(0.25f);
+		}
+
+		// 3. 🌟 방어 GE가 남아있다면 강제 제거
+		if (ActiveBlockEffectHandle.IsValid())
+		{
+			ASC->RemoveActiveGameplayEffect(ActiveBlockEffectHandle);
+			ActiveBlockEffectHandle.Invalidate();
+		}
 	}
-	
-	if (BlockEndCueTag.IsValid())
-	{
-		GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(BlockEndCueTag, FGameplayCueParameters());
-	}
+
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

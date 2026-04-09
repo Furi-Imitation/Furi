@@ -4,10 +4,12 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Furi/SSR/SSRPlayer.h"
 #include "Furi/FuriPlayerController.h"
+#include "Furi/FuriBlueprintFunctionLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h" // 🌟 커스텀 컨텍스트를 위해 추가
 
 USSRFinal::USSRFinal()
@@ -32,6 +34,22 @@ void USSRFinal::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 	bFirstHitSuccess = false;
 	GrabbedTarget = nullptr;
 	CurrentHitCount = 0;
+
+	// 🌟 [추가] 시전 시 가장 가까운 적을 바라보도록 회전
+	if (AActor* MyAvatar = GetAvatarActorFromActorInfo())
+	{
+		// 3000.f 반경 내에서 가장 가까운 적을 찾습니다.
+		AActor* ClosestTarget = UFuriBlueprintFunctionLibrary::FindClosestTarget(MyAvatar, 3000.f, TArray<AActor*>());
+		if (ClosestTarget)
+		{
+			FVector TargetLocation = ClosestTarget->GetActorLocation();
+			FVector MyLocation = MyAvatar->GetActorLocation();
+			TargetLocation.Z = MyLocation.Z; // 높이 차이 무시
+
+			FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(MyLocation, TargetLocation);
+			MyAvatar->SetActorRotation(LookAtRot);
+		}
+	}
 
 	if (HitEventTag.IsValid())
 	{
