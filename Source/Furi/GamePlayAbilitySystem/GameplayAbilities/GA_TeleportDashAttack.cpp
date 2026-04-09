@@ -172,10 +172,6 @@ void UGA_TeleportDashAttack::OnHitCheckEventReceived(FGameplayEventData Payload)
 	bool bHit = GetWorld()->OverlapMultiByChannel(OverlapResults, BoxCenter, BoxRotation, ECC_Pawn,
 	                                              FCollisionShape::MakeBox(BoxHalfExtent), QueryParams);
 
-#if !UE_BUILD_SHIPPING
-	DrawDebugBox(GetWorld(), BoxCenter, BoxHalfExtent, BoxRotation, FColor::Red, false, 1.0f);
-#endif
-
 	if (bHit)
 	{
 		for (const FOverlapResult& Result : OverlapResults)
