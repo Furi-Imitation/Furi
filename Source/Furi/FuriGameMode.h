@@ -79,4 +79,8 @@ private:
 	AGasCharacterBase* CachedWinner;
 	UPROPERTY()
 	AGasCharacterBase* CachedLoser;
+
+	bool bMatchEndSequenceStarted = false;
+	bool bDeathSequenceHandled = false;
+	bool bVictorySequenceHandled = false;
 };

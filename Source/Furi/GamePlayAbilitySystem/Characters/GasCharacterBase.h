@@ -14,6 +14,7 @@ class USpringArmComponent;
 class UCameraComponent;
 enum class EFuriDamageResponse : uint8;
 class UBasicAttributeSet;
+struct FBranchingPointNotifyPayload;
 
 UCLASS()
 class FURI_API AGasCharacterBase : public ACharacter, public IAbilitySystemInterface
@@ -131,8 +132,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void PlayDeathMontage();
 	
-	UFUNCTION()
-	void OnFinishMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	// UFUNCTION()
+	//void OnFinishMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	bool bIsWinningSequence = false;
 protected:
@@ -144,9 +145,30 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Montages")
 	UAnimMontage* VictoryMontage;
 	
-	
 
 	// 모든 클라이언트에서 사망 처리 (애니메이션, 물리 비활성화 등)
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_Die();
+	
+public:
+	UFUNCTION()
+	void AnimNotify_DieFinish();
+
+	// 🌟 서버에게 노티파이 발생을 알리는 함수
+	UFUNCTION(Server, Reliable)
+	void Server_NotifyDieFinish();
+	
+	UFUNCTION() 
+	void AnimNotify_VictoryFinish();
+	UFUNCTION(Server, Reliable) 
+	void Server_NotifyVictoryFinish();
+
+	UFUNCTION()
+	void HandleMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
+
+private:
+	void BindFinishingMontageNotifies();
+
+	bool bDeathFinishNotified = false;
+	bool bVictoryFinishNotified = false;
 };

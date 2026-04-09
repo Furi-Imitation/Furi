@@ -330,6 +330,11 @@ void AFuriPlayerController::ShowGameEndUI(bool bVictory)
 {
 	UE_LOG(LogTemp, Warning, TEXT("ShowGameEndUI Attempt..."));
 
+	if (EndUIInstance)
+	{
+		return;
+	}
+
 	if (!EndUIClass)
 	{
 		UE_LOG(LogTemp, Error, TEXT("EndUIClass is STILL NULL! Check BP again!"));

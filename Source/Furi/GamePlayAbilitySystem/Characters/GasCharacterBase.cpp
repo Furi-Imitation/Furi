@@ -7,6 +7,7 @@
 #include "Furi/FuriGameMode.h"
 #include "Furi/FuriPlayerController.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "Furi/utils/FuriTypes.h"
@@ -363,14 +364,14 @@ void AGasCharacterBase::Die()
 			{
 				GM->ProcessMatchEnd(Winner, this);
 			}
-			else
-			{
-				// 승자를 못 찾은 경우를 대비한 안전장치 (기존처럼 UI라도 띄움)
-				if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(GetController()))
-				{
-					PC->Client_ShowGameEndUI(false);
-				}
-			}
+			// else
+			// {
+			// 	// 승자를 못 찾은 경우를 대비한 안전장치 (기존처럼 UI라도 띄움)
+			// 	if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(GetController()))
+			// 	{
+			// 		PC->Client_ShowGameEndUI(false);
+			// 	}
+			// }
 		}
 	}
 	
@@ -413,12 +414,14 @@ void AGasCharacterBase::PlayDeathMontage()
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		if (AnimInstance)
 		{
+			bDeathFinishNotified = false;
+			BindFinishingMontageNotifies();
 			AnimInstance->Montage_Play(DeathMontage);
 			bIsWinningSequence = false;
 
 			// 🌟 몽타주가 끝날 때 실행될 함수 연결
 			FOnMontageEnded EndDelegate;
-			EndDelegate.BindUObject(this, &AGasCharacterBase::OnFinishMontageEnded);
+			// EndDelegate.BindUObject(this, &AGasCharacterBase::OnFinishMontageEnded);
 			AnimInstance->Montage_SetEndDelegate(EndDelegate, DeathMontage);
 		}
 	}
@@ -431,38 +434,97 @@ void AGasCharacterBase::PlayVictoryMontage()
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		if (AnimInstance)
 		{
+			bVictoryFinishNotified = false;
+			BindFinishingMontageNotifies();
 			AnimInstance->Montage_Play(VictoryMontage);
 			bIsWinningSequence = true;
 
 			FOnMontageEnded EndDelegate;
-			EndDelegate.BindUObject(this, &AGasCharacterBase::OnFinishMontageEnded);
+			// EndDelegate.BindUObject(this, &AGasCharacterBase::OnFinishMontageEnded);
 			AnimInstance->Montage_SetEndDelegate(EndDelegate, VictoryMontage);
 		}
 	}
 }
 
-void AGasCharacterBase::OnFinishMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+void AGasCharacterBase::BindFinishingMontageNotifies()
 {
-	if (!bIsWinningSequence)
+	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
+		AnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &AGasCharacterBase::HandleMontageNotifyBegin);
+		AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &AGasCharacterBase::HandleMontageNotifyBegin);
 	}
-	
-	if (HasAuthority())
+}
+
+void AGasCharacterBase::HandleMontageNotifyBegin(FName NotifyName,
+                                                 const FBranchingPointNotifyPayload& BranchingPointPayload)
+{
+	if (NotifyName == TEXT("DieFinish") && !bDeathFinishNotified)
 	{
-		AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode());
-		if (GM)
-		{
-			if (bIsWinningSequence)
-			{
-				GM->OnVictoryAnimationFinished();
-			}
-			else
-			{
-				GM->OnDeathAnimationFinished();
-			}
-		}
+		bDeathFinishNotified = true;
+		AnimNotify_DieFinish();
+		return;
+	}
+
+	if (NotifyName == TEXT("VictoryFinish") && !bVictoryFinishNotified)
+	{
+		bVictoryFinishNotified = true;
+		AnimNotify_VictoryFinish();
+	}
+}
+
+// void AGasCharacterBase::OnFinishMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+// {
+// 	if (!bIsWinningSequence)
+// 	{
+// 		SetActorHiddenInGame(true);
+// 		SetActorEnableCollision(false);
+// 	}
+// 	
+// 	if (HasAuthority())
+// 	{
+// 		AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode());
+// 		if (GM)
+// 		{
+// 			if (bIsWinningSequence)
+// 			{
+// 				GM->OnVictoryAnimationFinished();
+// 			}
+// 			else
+// 			{
+// 				GM->OnDeathAnimationFinished();
+// 			}
+// 		}
+// 	}
+// }
+
+void AGasCharacterBase::AnimNotify_DieFinish()
+{
+	UE_LOG(LogTemp, Warning, TEXT("DieFinish Notify Received on %s"), HasAuthority() ? TEXT("Server") : TEXT("Client"));
+
+	// 서버에게 보고합니다.
+	Server_NotifyDieFinish();
+}
+
+void AGasCharacterBase::AnimNotify_VictoryFinish()
+{
+	Server_NotifyVictoryFinish();
+}
+
+void AGasCharacterBase::Server_NotifyVictoryFinish_Implementation()
+{
+	if (AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->OnVictoryAnimationFinished();
+	}
+}
+
+void AGasCharacterBase::Server_NotifyDieFinish_Implementation()
+{
+	AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode());
+	if (GM)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Server: Calling GM->OnDeathAnimationFinished()"));
+		GM->OnDeathAnimationFinished();
 	}
 }
 
