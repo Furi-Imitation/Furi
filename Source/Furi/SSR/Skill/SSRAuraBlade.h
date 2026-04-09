@@ -21,6 +21,9 @@ protected:
 	UFUNCTION()
 	void OnDelayFinished();
 
+	UFUNCTION()
+	void OnMontageInterrupted();
+
 	// 대미지 전용 공용 GE를 사용합니다. (Set by Caller 연동용)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Damage")
 	TSubclassOf<class UGameplayEffect> BaseDamageEffectClass;

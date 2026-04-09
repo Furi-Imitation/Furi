@@ -112,6 +112,7 @@ void UGA_Attack::PlayComboSection()
 		this, TEXT("AttackTask"), ComboMontage, 1.0f, SectionName);
 	MontageTask->OnCompleted.AddDynamic(this, &UGA_Attack::OnMontageCompleted);
 	MontageTask->OnInterrupted.AddDynamic(this, &UGA_Attack::OnMontageCompleted);
+	MontageTask->OnCancelled.AddDynamic(this, &UGA_Attack::OnMontageCompleted);
 	MontageTask->ReadyForActivation();
 }
 

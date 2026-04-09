@@ -63,6 +63,7 @@ void USSRFinal::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 		this, TEXT("UltimateTask"), UltimateMontage);
 	MontageTask->OnCompleted.AddDynamic(this, &USSRFinal::OnMontageFinished);
 	MontageTask->OnInterrupted.AddDynamic(this, &USSRFinal::OnMontageFinished);
+	MontageTask->OnCancelled.AddDynamic(this, &USSRFinal::OnMontageFinished);
 	MontageTask->ReadyForActivation();
 }
 

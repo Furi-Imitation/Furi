@@ -60,6 +60,10 @@ void UGA_Block::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 			this, TEXT("BlockAni"), BlockMontage);
 		if (MontageTask)
 		{
+			// 🌟 [추가] 몽타주 종료/중단/취소 시 어빌리티 종료 처리 (안전장치)
+			MontageTask->OnCompleted.AddDynamic(this, &UGA_Block::OnBlockMontageFinished);
+			MontageTask->OnInterrupted.AddDynamic(this, &UGA_Block::OnBlockMontageFinished);
+			MontageTask->OnCancelled.AddDynamic(this, &UGA_Block::OnBlockMontageFinished);
 			MontageTask->ReadyForActivation();
 		}
 	}
@@ -80,6 +84,11 @@ void UGA_Block::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 void UGA_Block::OnBlockEffectRemoved(const FGameplayEffectRemovalInfo& InGameplayEffectRemovalInfo)
 {
 	// 방어 이펙트가 (시간이 다 되어서, 혹은 적에게 강제로 깨져서) 사라졌다면 스킬을 종료합니다.
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void UGA_Block::OnBlockMontageFinished()
+{
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 

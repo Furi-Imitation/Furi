@@ -182,16 +182,17 @@ void AGasCharacterBase::HandleDamageResponse(const FFuriDamageInfo& DamageInfo, 
 	const FGameplayTag LockTag = FGameplayTag::RequestGameplayTag(FName("State.Lock"));
 	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
 
-	// 만약 이전 피격으로 인해 이미 타이머가 돌고 있다면 (연속 피격)
-	if (TimerManager.IsTimerActive(LockTimerHandle))
+	// 🌟 [개선] 히트 리액션에 의한 Lock은 중첩되지 않도록 처리
+	// 이미 히트 리액션 타이머가 돌고 있다면, 태그를 지우지 않고 타이머만 새로 갱신합니다.
+	// (기존에는 Remove/Add를 반복하여 스택이 꼬일 위험이 있었음)
+	if (!TimerManager.IsTimerActive(LockTimerHandle))
 	{
-		// 타이머를 취소하고, 취소된 타이머가 지웠어야 할 태그 스택을 미리 하나 상쇄시킵니다.
-		TimerManager.ClearTimer(LockTimerHandle);
-		AbilitySystemComponent->RemoveLooseGameplayTag(LockTag);
+		AbilitySystemComponent->AddLooseGameplayTag(LockTag);
 	}
-
-	// 이제 안전하게 새 태그 스택을 추가합니다.
-	AbilitySystemComponent->AddLooseGameplayTag(LockTag);
+	else
+	{
+		TimerManager.ClearTimer(LockTimerHandle);
+	}
 
 	// ---------------------------------------------------------
 	// 🎬 [애니메이션 재생]
@@ -222,13 +223,17 @@ void AGasCharacterBase::HandleDamageResponse(const FFuriDamageInfo& DamageInfo, 
 		TimerManager.SetTimer(StunTimerHandle, StopMontageDelegate, DamageInfo.StunDuration, false);
 	}
 
-	// [Lock 해제 로직] (위에서 ClearTimer를 했으므로 바로 SetTimer만 하면 됩니다)
+	// [Lock 해제 로직]
 	FTimerDelegate RemoveLockDelegate;
 	RemoveLockDelegate.BindWeakLambda(this, [this, LockTag]()
 	{
 		if (AbilitySystemComponent)
 		{
-			AbilitySystemComponent->RemoveLooseGameplayTag(LockTag);
+			// 🌟 [안전장치] 태그가 있을 때만 제거하여 스택 마이너스 방지
+			if (AbilitySystemComponent->GetTagCount(LockTag) > 0)
+			{
+				AbilitySystemComponent->RemoveLooseGameplayTag(LockTag);
+			}
 		}
 	});
 
@@ -325,6 +330,11 @@ void AGasCharacterBase::Die()
 
 	// 2. 사망 태그 부여 (HandleDamageResponse의 최상단에서 데미지를 거부하게 됨)
 	AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+
+	// 🌟 [추가] 사망 시 모든 Lock 태그 강제 제거 (스택 초기화)
+	const FGameplayTag LockTag = FGameplayTag::RequestGameplayTag(FName("State.Lock"));
+	AbilitySystemComponent->SetLooseGameplayTagCount(LockTag, 0);
+	GetWorld()->GetTimerManager().ClearTimer(LockTimerHandle);
 
 	// 3. 현재 시전 중이거나 유지 중인 모든 스킬(어빌리티) 강제 종료
 	AbilitySystemComponent->CancelAllAbilities();

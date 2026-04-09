@@ -33,6 +33,10 @@ protected:
 	UFUNCTION()
 	void OnBlockEffectRemoved(const FGameplayEffectRemovalInfo& InGameplayEffectRemovalInfo);
 
+	// 애니메이션이 중단되거나 완료되었을 때 호출 (매개변수 없음)
+	UFUNCTION()
+	void OnBlockEffectRemovedManual();
+
 	// 입력이 해제되었을 때 호출
 	UFUNCTION()
 	void OnInputReleased(float TimeHeld);

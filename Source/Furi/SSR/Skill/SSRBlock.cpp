@@ -72,6 +72,10 @@ void USSRBlock::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 			this, TEXT("BlockAni"), BlockMontage);
 		if (MontageTask)
 		{
+			// 🌟 [수정] 몽타주가 중단되거나 취소되었을 때도 EndAbility가 호출되도록 바인딩
+			MontageTask->OnCompleted.AddDynamic(this, &USSRBlock::OnBlockEffectRemovedManual);
+			MontageTask->OnInterrupted.AddDynamic(this, &USSRBlock::OnBlockEffectRemovedManual);
+			MontageTask->OnCancelled.AddDynamic(this, &USSRBlock::OnBlockEffectRemovedManual);
 			MontageTask->ReadyForActivation();
 		}
 	}
@@ -100,6 +104,12 @@ void USSRBlock::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 void USSRBlock::OnInputReleased(float TimeHeld)
 {
 	// 버튼을 떼면 방어 종료
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void USSRBlock::OnBlockEffectRemovedManual()
+{
+	// 몽타주가 완료되거나 중단되었을 때 방어 종료
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 

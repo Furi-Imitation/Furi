@@ -28,6 +28,9 @@ protected:
 	UFUNCTION()
 	void OnBlockEffectRemoved(const FGameplayEffectRemovalInfo& InGameplayEffectRemovalInfo);
 
+	UFUNCTION()
+	void OnBlockMontageFinished();
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Block")
 	UAnimMontage* BlockMontage;
 

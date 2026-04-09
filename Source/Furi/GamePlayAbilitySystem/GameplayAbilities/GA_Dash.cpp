@@ -63,6 +63,7 @@ void UGA_Dash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
 	{
 		// 6. [이벤트 바인딩] 대시 이동이 끝나면 OnDashFinished 함수가 실행되도록 연결합니다.
 		MoveTask->OnFinish.AddDynamic(this, &UGA_Dash::OnDashFinished);
+		MoveTask->OnInterrupted.AddDynamic(this, &UGA_Dash::OnDashFinished);
 
 		// 7. [활성화] 태스크를 실제로 가동시킵니다.
 		MoveTask->ReadyForActivation();

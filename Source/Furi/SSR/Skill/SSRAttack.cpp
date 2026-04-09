@@ -122,6 +122,7 @@ void USSRAttack::PlayComboSection()
 	{
 		MontageTask->OnCompleted.AddDynamic(this, &USSRAttack::OnMontageCompleted);
 		MontageTask->OnInterrupted.AddDynamic(this, &USSRAttack::OnMontageCompleted);
+		MontageTask->OnCancelled.AddDynamic(this, &USSRAttack::OnMontageCompleted);
 		MontageTask->ReadyForActivation();
 	}
 }

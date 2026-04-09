@@ -33,6 +33,9 @@ void USSRAuraBlade::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	{
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this, NAME_None, ChargeMontage);
+		// 🌟 [추가] 몽타주 중단/취소 시 어빌리티 종료 처리
+		MontageTask->OnInterrupted.AddDynamic(this, &USSRAuraBlade::OnMontageInterrupted);
+		MontageTask->OnCancelled.AddDynamic(this, &USSRAuraBlade::OnMontageInterrupted);
 		MontageTask->ReadyForActivation();
 	}
 
@@ -68,6 +71,11 @@ void USSRAuraBlade::EndAbility(const FGameplayAbilitySpecHandle Handle, const FG
 {
 	UE_LOG(LogTemp, Error, TEXT("=== SERVER END ABILITY DETECTED ==="));
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void USSRAuraBlade::OnMontageInterrupted()
+{
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
 void USSRAuraBlade::OnDelayFinished()
