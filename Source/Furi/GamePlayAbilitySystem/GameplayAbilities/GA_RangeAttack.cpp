@@ -86,11 +86,6 @@ void UGA_RangeAttack::OnHitEventReceived(FGameplayEventData Payload)
 		CueParams.NormalizedMagnitude = 1.5f;
 		MyASC->ExecuteGameplayCue(HitCueTag, CueParams);
 	}
-
-#if !UE_BUILD_SHIPPING
-	DrawDebugSphere(GetWorld(), Origin, AttackRadius, 32, FColor::Red, false, 1.0f);
-#endif
-
 	// 2. 콜리전 스캔
 	TArray<FOverlapResult> OverlapResults;
 	FCollisionQueryParams Params;
