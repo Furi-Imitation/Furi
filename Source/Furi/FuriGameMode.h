@@ -8,6 +8,7 @@
 
 class ULevelSequence;
 class ULevelSequencePlayer;
+class AGasCharacterBase;
 /**
  * 
  */
@@ -66,4 +67,16 @@ private:
 	ULevelSequencePlayer* IntroSequencePlayer;
 
 	int32 SpawnedPlayerCount = 0;
+	
+public:
+	void ProcessMatchEnd(AGasCharacterBase* Winner, AGasCharacterBase* Loser);
+	
+	void OnDeathAnimationFinished();
+	void OnVictoryAnimationFinished();
+	
+private:
+	UPROPERTY()
+	AGasCharacterBase* CachedWinner;
+	UPROPERTY()
+	AGasCharacterBase* CachedLoser;
 };

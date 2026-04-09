@@ -382,3 +382,31 @@ void AFuriPlayerController::Client_ShowGameEndUI_Implementation(bool bVictory)
 	// 이 코드는 이제 각 플레이어의 '진짜 자기 컴퓨터'에서만 실행됩니다.
 	ShowGameEndUI(bVictory);
 }
+
+void AFuriPlayerController::Client_PlayFinishingSequence_Implementation(AActor* TargetActor, bool bIsWinner)
+{
+	if (!TargetActor) return;
+
+	// 1. 카메라 조작 모드 활성화 (Tick에서 UpdateStandardCamera가 작동하지 않도록 함)
+	bIsCinematicMode = true; 
+
+	// 2. 카메라를 대상에게 줌 (Blended 이동)
+	// 0.5초 동안 부드럽게 대상 캐릭터를 비춤
+	SetViewTargetWithBlend(TargetActor, 0.5f, VTBlend_Cubic);
+
+	// 3. 대상 캐릭터의 애니메이션 재생
+	if (AGasCharacterBase* TargetChar = Cast<AGasCharacterBase>(TargetActor))
+	{
+		if (bIsWinner) {
+			TargetChar->PlayVictoryMontage(); // 캐릭터 클래스에 구현 필요
+		} else {
+			TargetChar->PlayDeathMontage();   // 캐릭터 클래스에 구현 필요
+		}
+	}
+}
+
+void AFuriPlayerController::Client_FinalShowUI_Implementation(bool bVictory)
+{
+	// 기존에 만들어두신 UI 표시 함수 호출
+	ShowGameEndUI(bVictory);
+}

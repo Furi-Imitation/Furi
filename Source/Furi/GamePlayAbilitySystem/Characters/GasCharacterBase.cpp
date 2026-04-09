@@ -4,7 +4,9 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Furi/FuriGameMode.h"
 #include "Furi/FuriPlayerController.h"
+#include "Animation/AnimInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "Furi/utils/FuriTypes.h"
@@ -331,35 +333,139 @@ void AGasCharacterBase::Die()
 
 	UE_LOG(LogTemp, Warning, TEXT("[%s] 사망했습니다!"), *GetName());
 
-	// ==========================================
-	// 4. 게임 종료 UI 호출 로직 추가
-	// ==========================================
-
-	if (HasAuthority()) // 서버에서만 판단합니다.
+	// 0408
+	
+	if (HasAuthority()) // 서버에서만 실행
 	{
-		AController* MyController = GetController();
-
-		// 1. 죽은 게 플레이어라면 -> 그 플레이어에게 "패배" 전달
-		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(MyController))
+		AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode());
+		if (GM)
 		{
-			PC->Client_ShowGameEndUI(false);
-		}
-
-		// 2. 적이 죽었다면 -> 월드의 모든 플레이어에게 "승리" 전달
-		// (1대1 게임이라면 상대방만 찾아서 보내면 됩니다)
-		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-		{
-			if (AFuriPlayerController* OtherPC = Cast<AFuriPlayerController>(It->Get()))
+			// 1대1 상황이므로:
+			// Loser(패자): 죽은 본인 (this)
+			// Winner(승자): 내가 아닌 다른 플레이어 캐릭터
+            
+			AGasCharacterBase* Winner = nullptr;
+            
+			// 월드에서 내가 아닌 다른 캐릭터 하나를 찾습니다.
+			TArray<AActor*> FoundCharacters;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGasCharacterBase::StaticClass(), FoundCharacters);
+			for (AActor* Actor : FoundCharacters)
 			{
-				// 죽은 본인이 아닌 사람들에게만 승리라고 알려줌
-				if (OtherPC != MyController)
+				if (Actor != this)
 				{
-					OtherPC->Client_ShowGameEndUI(true);
+					Winner = Cast<AGasCharacterBase>(Actor);
+					break;
+				}
+			}
+
+			// 이제 GameMode에게 연출 시퀀스를 시작하라고 명령합니다.
+			if (Winner)
+			{
+				GM->ProcessMatchEnd(Winner, this);
+			}
+			else
+			{
+				// 승자를 못 찾은 경우를 대비한 안전장치 (기존처럼 UI라도 띄움)
+				if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(GetController()))
+				{
+					PC->Client_ShowGameEndUI(false);
 				}
 			}
 		}
 	}
+	
+	// 0408
+	
+	// // ==========================================
+	// // 4. 게임 종료 UI 호출 로직 추가
+	// // ==========================================
+	//
+	// if (HasAuthority()) // 서버에서만 판단합니다.
+	// {
+	// 	AController* MyController = GetController();
+	//
+	// 	// 1. 죽은 게 플레이어라면 -> 그 플레이어에게 "패배" 전달
+	// 	if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(MyController))
+	// 	{
+	// 		PC->Client_ShowGameEndUI(false);
+	// 	}
+	//
+	// 	// 2. 적이 죽었다면 -> 월드의 모든 플레이어에게 "승리" 전달
+	// 	// (1대1 게임이라면 상대방만 찾아서 보내면 됩니다)
+	// 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	// 	{
+	// 		if (AFuriPlayerController* OtherPC = Cast<AFuriPlayerController>(It->Get()))
+	// 		{
+	// 			// 죽은 본인이 아닌 사람들에게만 승리라고 알려줌
+	// 			if (OtherPC != MyController)
+	// 			{
+	// 				OtherPC->Client_ShowGameEndUI(true);
+	// 			}
+	// 		}
+	// 	}
+	// }
 }
+
+void AGasCharacterBase::PlayDeathMontage()
+{
+	if (DeathMontage)
+	{
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance)
+		{
+			AnimInstance->Montage_Play(DeathMontage);
+			bIsWinningSequence = false;
+
+			// 🌟 몽타주가 끝날 때 실행될 함수 연결
+			FOnMontageEnded EndDelegate;
+			EndDelegate.BindUObject(this, &AGasCharacterBase::OnFinishMontageEnded);
+			AnimInstance->Montage_SetEndDelegate(EndDelegate, DeathMontage);
+		}
+	}
+}
+
+void AGasCharacterBase::PlayVictoryMontage()
+{
+	if (VictoryMontage)
+	{
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance)
+		{
+			AnimInstance->Montage_Play(VictoryMontage);
+			bIsWinningSequence = true;
+
+			FOnMontageEnded EndDelegate;
+			EndDelegate.BindUObject(this, &AGasCharacterBase::OnFinishMontageEnded);
+			AnimInstance->Montage_SetEndDelegate(EndDelegate, VictoryMontage);
+		}
+	}
+}
+
+void AGasCharacterBase::OnFinishMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (!bIsWinningSequence)
+	{
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+	}
+	
+	if (HasAuthority())
+	{
+		AFuriGameMode* GM = Cast<AFuriGameMode>(GetWorld()->GetAuthGameMode());
+		if (GM)
+		{
+			if (bIsWinningSequence)
+			{
+				GM->OnVictoryAnimationFinished();
+			}
+			else
+			{
+				GM->OnDeathAnimationFinished();
+			}
+		}
+	}
+}
+
 
 // 모든 클라이언트의 화면에서 동일하게 처리되는 시각적/물리적 사망 처리
 void AGasCharacterBase::Multicast_Die_Implementation()
@@ -371,12 +477,19 @@ void AGasCharacterBase::Multicast_Die_Implementation()
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
 
-	// 3. 사망 몽타주 재생 (없으면 래그돌로 전환)
-	if (DeathMontage)
-	{
-		PlayAnimMontage(DeathMontage);
-	}
-	else
+	// // 3. 사망 몽타주 재생 (없으면 래그돌로 전환)
+	// if (DeathMontage)
+	// {
+	// 	PlayAnimMontage(DeathMontage);
+	// }
+	// else
+	// {
+	// 	//사망 몽타주가 세팅되지 않았을 경우, 자연스럽게 물리 엔진에 맡겨 쓰러지게(Ragdoll) 만듭니다.
+	// 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	// 	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
+	// 	GetMesh()->SetSimulatePhysics(true);
+	// }
+	if (!DeathMontage)
 	{
 		//사망 몽타주가 세팅되지 않았을 경우, 자연스럽게 물리 엔진에 맡겨 쓰러지게(Ragdoll) 만듭니다.
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);

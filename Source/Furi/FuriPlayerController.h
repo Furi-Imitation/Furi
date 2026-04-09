@@ -112,4 +112,22 @@ public:
 	// NetMulticast나 Client 키워드를 사용하여 서버가 클라이언트에게 명령하게 합니다.
 	UFUNCTION(Client, Reliable)
 	void Client_ShowGameEndUI(bool bVictory);
+	
+	// EndUI나오기전에 사망 + 승리 애니메이션 출력
+public:
+	// 특정 타겟을 집중 조명하고 애니메이션을 재생하는 함수
+	UFUNCTION(Client, Reliable)
+	void Client_PlayFinishingSequence(AActor* TargetActor, bool bIsWinner);
+
+	// EndUI만 따로 띄우는 함수 (기존 ShowGameEndUI를 활용하거나 분리)
+	UFUNCTION(Client, Reliable)
+	void Client_FinalShowUI(bool bVictory);
+
+protected:
+	// 카메라 보간용 변수
+	bool bIsFinishingFocus = false;
+	UPROPERTY()
+	AActor* FinishFocusTarget = nullptr;
+    
+	// PlayerTick에서 카메라를 부드럽게 옮기기 위해 로직 수정이 필요할 수 있음
 };
