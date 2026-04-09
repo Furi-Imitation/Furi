@@ -6,12 +6,11 @@
 
 bool UEndUI::Initialize()
 {
-	if (!Super::Initialize()) return false;
-
-	if (RestartButton)
+	if (!Super::Initialize())
 	{
-		RestartButton->OnClicked.AddDynamic(this, &UEndUI::OnRestartClicked);
+		return false;
 	}
+
 	if (QuitButton)
 	{
 		QuitButton->OnClicked.AddDynamic(this, &UEndUI::OnQuitClicked);
@@ -26,14 +25,6 @@ void UEndUI::SetGameResult(bool bIsVictory)
 	OnGameResultDetermined(bIsVictory);
 }
 
-
-void UEndUI::OnRestartClicked()
-{
-	// 현재 레벨 재시작
-	FString LevelName = GetWorld()->GetMapName();
-	LevelName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
-	UGameplayStatics::OpenLevel(GetWorld(), FName(*LevelName));
-}
 
 void UEndUI::OnQuitClicked()
 {

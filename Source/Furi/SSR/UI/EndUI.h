@@ -29,14 +29,7 @@ protected:
 	class UTextBlock* ResultText;
 
 	UPROPERTY(meta = (BindWidget))
-	class UButton* RestartButton;
-
-	UPROPERTY(meta = (BindWidget))
 	class UButton* QuitButton;
-
-	// 버튼 클릭 이벤트
-	UFUNCTION()
-	void OnRestartClicked();
 
 	UFUNCTION()
 	void OnQuitClicked();
