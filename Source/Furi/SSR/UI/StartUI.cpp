@@ -45,7 +45,7 @@ void UStartUI::OnStartButtonClicked()
 
 		if (StartButtonText)
 		{
-			StartButtonText->SetText(FText::FromString(TEXT("Waiting for Other Player...")));
+			StartButtonText->SetText(FText::FromString(TEXT("Wait...")));
 		}
 	}
 	else

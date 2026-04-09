@@ -10,6 +10,7 @@
 #include "Engine/PostProcessVolume.h"
 #include "GameFramework/PlayerStart.h"
 #include "GamePlayAbilitySystem/Characters/GasCharacterBase.h"
+#include "GameplayTagContainer.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -262,8 +263,29 @@ void AFuriGameMode::EndIntroAndStartFight()
 
 void AFuriGameMode::ProcessMatchEnd(AGasCharacterBase* Winner, AGasCharacterBase* Loser)
 {
+	if (bMatchEndSequenceStarted || !Winner || !Loser)
+	{
+		return;
+	}
+
+	bMatchEndSequenceStarted = true;
+	bDeathSequenceHandled = false;
+	bVictorySequenceHandled = false;
 	CachedWinner = Winner;
 	CachedLoser = Loser;
+
+	const FGameplayTag LockTag = FGameplayTag::RequestGameplayTag(FName("State.Lock"));
+	if (CachedWinner->GetAbilitySystemComponent())
+	{
+		CachedWinner->GetAbilitySystemComponent()->CancelAllAbilities();
+		CachedWinner->GetAbilitySystemComponent()->AddLooseGameplayTag(LockTag);
+	}
+
+	if (CachedLoser->GetAbilitySystemComponent())
+	{
+		CachedLoser->GetAbilitySystemComponent()->CancelAllAbilities();
+		CachedLoser->GetAbilitySystemComponent()->AddLooseGameplayTag(LockTag);
+	}
 	
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
@@ -276,6 +298,12 @@ void AFuriGameMode::ProcessMatchEnd(AGasCharacterBase* Winner, AGasCharacterBase
 
 void AFuriGameMode::OnDeathAnimationFinished()
 {
+	if (!bMatchEndSequenceStarted || bDeathSequenceHandled || !CachedWinner)
+	{
+		return;
+	}
+
+	bDeathSequenceHandled = true;
 	
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
@@ -288,6 +316,13 @@ void AFuriGameMode::OnDeathAnimationFinished()
 
 void AFuriGameMode::OnVictoryAnimationFinished()
 {
+	if (!bMatchEndSequenceStarted || bVictorySequenceHandled || !CachedWinner)
+	{
+		return;
+	}
+
+	bVictorySequenceHandled = true;
+
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
 		if (AFuriPlayerController* PC = Cast<AFuriPlayerController>(It->Get()))
