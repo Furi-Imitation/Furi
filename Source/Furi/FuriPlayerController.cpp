@@ -67,7 +67,7 @@ void AFuriPlayerController::BeginPlay()
 			if (MainHUDWidget)
 			{
 				MainHUDWidget->AddToViewport();
-				
+
 				// 🌟 [추가] 시네마틱 중에는 HUD를 보이지 않게 합니다.
 				MainHUDWidget->SetVisibility(ESlateVisibility::Collapsed);
 
@@ -108,7 +108,7 @@ void AFuriPlayerController::UpdateStandardCamera(float DeltaTime)
 {
 	// 맵에 있는 모든 캐릭터(플레이어와 적)를 가져옵니다.
 	TArray<AActor*> Players;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACharacter::StaticClass(), Players);
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGasCharacterBase::StaticClass(), Players);
 	if (Players.Num() == 0)
 	{
 		return;
@@ -169,7 +169,7 @@ void AFuriPlayerController::Client_ShowReadyStartUI_Implementation()
 		if (ReadyStartWidgetInstance)
 		{
 			ReadyStartWidgetInstance->AddToViewport();
-			
+
 			// 🌟 2. 블루프린트 애니메이션 재생 이벤트를 명시적으로 호출합니다.
 			ReadyStartWidgetInstance->PlayReadyStartAnimation();
 		}
@@ -385,10 +385,13 @@ void AFuriPlayerController::Client_ShowGameEndUI_Implementation(bool bVictory)
 
 void AFuriPlayerController::Client_PlayFinishingSequence_Implementation(AActor* TargetActor, bool bIsWinner)
 {
-	if (!TargetActor) return;
+	if (!TargetActor)
+	{
+		return;
+	}
 
 	// 1. 카메라 조작 모드 활성화 (Tick에서 UpdateStandardCamera가 작동하지 않도록 함)
-	bIsCinematicMode = true; 
+	bIsCinematicMode = true;
 
 	// 2. 카메라를 대상에게 줌 (Blended 이동)
 	// 0.5초 동안 부드럽게 대상 캐릭터를 비춤
@@ -397,10 +400,13 @@ void AFuriPlayerController::Client_PlayFinishingSequence_Implementation(AActor* 
 	// 3. 대상 캐릭터의 애니메이션 재생
 	if (AGasCharacterBase* TargetChar = Cast<AGasCharacterBase>(TargetActor))
 	{
-		if (bIsWinner) {
+		if (bIsWinner)
+		{
 			TargetChar->PlayVictoryMontage(); // 캐릭터 클래스에 구현 필요
-		} else {
-			TargetChar->PlayDeathMontage();   // 캐릭터 클래스에 구현 필요
+		}
+		else
+		{
+			TargetChar->PlayDeathMontage(); // 캐릭터 클래스에 구현 필요
 		}
 	}
 }
