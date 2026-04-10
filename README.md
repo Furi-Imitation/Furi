@@ -21,7 +21,10 @@
 
 - **EFuriDamageType & Response**: 근접, 투사체 등 공격 성격과 스태거, 기절 등 피격 반응을 세분화하여 정교한 액션 피드백 구현.
 - **FFuriDamageInfo**: 데미지 양뿐만 아니라 가드/패링 가능 여부, 무적 무시 속성 등을 포함하여 GAS의 `EffectContext`에 실어 보내는 핵심 데이터 구조체.
-- **FWeaponConfig & InputActionConfig**: 무기별 메쉬, 부착 소켓, 애니메이션 레이어(ABP) 및 입력 태그 매핑을 데이터화하여 실시간 무기 교체 시스템의 유연성 확보.
+- **Unified Reaction System**: `EFuriDamageResponse`에 따라 Hit, Stagger, Stun, Knockback을 통합 처리하며, 서버-클라이언트 간 몽타주 동기화 보장.
+- **Hit-Stop & Time Dilation**: 공격 성공 시 `ExecuteHitStop`을 통해 일시적으로 `TimeDilation`을 조절하여 타격감 극대화.
+- **Weapon Management Component**: `FWeaponConfig` 데이터를 기반으로 스태틱 메쉬를 동적으로 부착하고 애니메이션 레이어(ABP)를 실시간 교체.
+- **Ultimate Cinematic Camera**: `GasCharacterBase`에 내장된 `UltSpringArm` 및 `UltCamera`를 활용하여 필살기 시전 시 역동적인 연출 카메라로 즉시 전환.
 
 ### 2. 커스텀 GAS 파이프라인 구축 (`AbilityTypes` & `Globals`)
 표준 GAS의 한계를 극복하고 게임 고유의 데이터를 네트워크 상에서 안전하게 전달하기 위해 엔진 레벨의 기능을 오버라이딩했습니다.
@@ -106,6 +109,13 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 }
 ```
 
+### 6. 매치 흐름 및 세션 관리 (Lobby to Cinematics)
+고성능 액션 게임의 흐름을 제어하기 위해 전용 게임 모드와 로비 시스템을 구축했습니다.
+
+- **Lobby Readiness System**: `ALobbyGameMode`와 `ALobbyPlayerController`를 통해 모든 플레이어의 준비 상태를 확인 후 매치 시작.
+- **Cinematic Intro Sequence**: `FuriGameMode`에서 `LevelSequence`를 활용한 인트로 연출을 수행하며, 시네마틱 종료 후 즉시 전투 모드로 전환.
+- **Asymmetric Character Matching**: 호스트(`AFuriCharacterP1`)와 클라이언트(`ASSRPlayer`) 간의 서로 다른 캐릭터 클래스 할당 및 스폰 로직 관리.
+
 ---
 
 ## 🚀 Technical Challenges & Troubleshooting (문제 해결 경험)
@@ -156,9 +166,9 @@ struct FWeaponConfig {
 ```
 
 - **GamePlayAbilitySystem**: 콤보 공격, 패링, 커스텀 GAS 파이프라인 (Types, Globals, Base)
-- **SSR Module**: 투사체 물리 및 캐릭터 고유 스킬 시스템
+- **SSR Module**: 투사체(`AuraBlade`) 물리 판정 및 방패/검 스킬을 포함한 캐릭터 고유 전투 로직
 - **Weapons & Input**: 데이터 에셋 기반의 무기 스탯 및 입력 매핑 관리 (`FuriTypes.h`)
-- **UI System**: GAS Attribute와 실시간 연동되는 데이터 바인딩 HUD
+- **UI System**: GAS Attribute 실시간 연동 HUD 및 `FuriSkillDataAsset` 기반의 데이터 주도형 스킬 정보 표시
 
 ---
 
