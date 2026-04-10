@@ -80,7 +80,6 @@ void USSRDash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
 	{
 		DashTask->OnFinish.AddDynamic(this, &USSRDash::OnDashFinished);
 		// 🌟 [추가] 태스크가 중단되었을 때도 종료 처리
-		DashTask->OnInterrupted.AddDynamic(this, &USSRDash::OnDashFinished);
 		DashTask->ReadyForActivation(); // 실행할 준비
 	}
 }
