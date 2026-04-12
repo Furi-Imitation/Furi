@@ -137,7 +137,7 @@ void USSRFinal::ProcessPhysicalHit()
 	bool bHit = UKismetSystemLibrary::BoxTraceSingle(
 		GetWorld(), Start, End, HalfSize, CachedPlayer->GetActorRotation(),
 		UEngineTypes::ConvertToTraceType(ECC_Pawn), false,
-		ActorsToIgnore, EDrawDebugTrace::ForDuration, HitResult, true,
+		ActorsToIgnore, EDrawDebugTrace::None, HitResult, true,
 		FLinearColor::Red, FLinearColor::Green, 1.0f
 	);
 

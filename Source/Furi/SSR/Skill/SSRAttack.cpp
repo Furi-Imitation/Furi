@@ -240,10 +240,10 @@ void USSRAttack::PerformHitCheck()
 		}
 	}
 
-#if !UE_BUILD_SHIPPING
-	DrawDebugBox(GetWorld(), BoxCenter, BoxHalfExtent, MyAvatar->GetActorRotation().Quaternion(), FColor::Red, false,
-	             2.0f, 0, 2.0f);
-#endif
+// #if !UE_BUILD_SHIPPING
+// 	DrawDebugBox(GetWorld(), BoxCenter, BoxHalfExtent, MyAvatar->GetActorRotation().Quaternion(), FColor::Red, false,
+// 	             2.0f, 0, 2.0f);
+// #endif
 }
 
 void USSRAttack::OnMontageCompleted()

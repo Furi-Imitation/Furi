@@ -200,10 +200,10 @@ void USSRSunFire::GetActorInRange(TArray<AActor*>& OutActors)
 		Params
 	);
 
-#if !UE_BUILD_SHIPPING
-	// 디버그 구체 (에디터에서 확인용)
-	DrawDebugSphere(GetWorld(), Center, Radius, 16, FColor::Orange, false, TickInterval);
-#endif
+// #if !UE_BUILD_SHIPPING
+// 	// 디버그 구체 (에디터에서 확인용)
+// 	DrawDebugSphere(GetWorld(), Center, Radius, 16, FColor::Orange, false, TickInterval);
+// #endif
 
 	if (bHit)
 	{
