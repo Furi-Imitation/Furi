@@ -1,4 +1,4 @@
-# [Portfolio] Furi Replicant: Networked High-Speed Action
+Furi Replicant: Networked High-Speed Action
 > **UE5 GAS 기반의 고밀도 전투 시스템 및 커스텀 데이터 파이프라인 구축**
 
 본 프로젝트는 하드코어 액션 게임 **'Furi'**의 핵심 시스템을 모작하며, **Gameplay Ability System(GAS)**의 프레임워크를 심층 커스터마이징하여 고성능 액션 게임에 적합한 **데이터 주도형(Data-Driven) 전투 시스템**과 **실시간 네트워크 동기화**를 구현한 포트폴리오입니다.
