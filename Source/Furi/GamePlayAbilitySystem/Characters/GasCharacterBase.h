@@ -15,6 +15,7 @@ class UCameraComponent;
 enum class EFuriDamageResponse : uint8;
 class UBasicAttributeSet;
 struct FBranchingPointNotifyPayload;
+class UFuriDebugComponent;
 
 UCLASS()
 class FURI_API AGasCharacterBase : public ACharacter, public IAbilitySystemInterface
@@ -31,6 +32,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ability System")
 	UBasicAttributeSet* BasicAttributeSet;
+
+	// Debug Component
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Debug")
+	UFuriDebugComponent* DebugComponent;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability System")

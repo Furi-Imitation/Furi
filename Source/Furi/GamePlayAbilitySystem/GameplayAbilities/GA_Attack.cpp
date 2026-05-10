@@ -8,6 +8,7 @@
 #include "Engine/OverlapResult.h"
 #include "Furi/GamePlayAbilitySystem/Characters/GasCharacterBase.h"
 #include "Furi/GamePlayAbilitySystem/FuriAbilityTypes.h"
+#include "Furi/utils/FuriDebugComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -33,6 +34,12 @@ void UGA_Attack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 	CurrentComboIndex = 1;
 	bComboWindowOpened = false;
 	bNextComboReserved = false;
+
+	// 디버그 업데이트
+	if (UFuriDebugComponent* DebugComp = GetAvatarActorFromActorInfo()->FindComponentByClass<UFuriDebugComponent>())
+	{
+		DebugComp->UpdateComboData(CurrentComboIndex, bComboWindowOpened, bNextComboReserved);
+	}
 
 	// 태스크 생성
 	UAbilityTask_WaitGameplayEvent* WaitStartTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
@@ -77,6 +84,20 @@ void UGA_Attack::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGa
 
 		MontageSetNextSectionName(CurrentSection, NextSection);
 		CurrentComboIndex++;
+
+		// 디버그 업데이트
+		if (UFuriDebugComponent* DebugComp = GetAvatarActorFromActorInfo()->FindComponentByClass<UFuriDebugComponent>())
+		{
+			DebugComp->UpdateComboData(CurrentComboIndex, bComboWindowOpened, bNextComboReserved);
+		}
+	}
+	else if (!bComboWindowOpened)
+	{
+		// 실패 원인 기록 (윈도우 닫힘)
+		if (UFuriDebugComponent* DebugComp = GetAvatarActorFromActorInfo()->FindComponentByClass<UFuriDebugComponent>())
+		{
+			DebugComp->UpdateComboData(CurrentComboIndex, bComboWindowOpened, bNextComboReserved, TEXT("Window Closed"));
+		}
 	}
 }
 
@@ -96,6 +117,12 @@ void UGA_Attack::OnComboEventReceived(FGameplayEventData Payload)
 	else if (EventTag.MatchesTag(HitCheckEventTag))
 	{
 		PerformHitCheck();
+	}
+
+	// 디버그 업데이트
+	if (UFuriDebugComponent* DebugComp = GetAvatarActorFromActorInfo()->FindComponentByClass<UFuriDebugComponent>())
+	{
+		DebugComp->UpdateComboData(CurrentComboIndex, bComboWindowOpened, bNextComboReserved);
 	}
 }
 

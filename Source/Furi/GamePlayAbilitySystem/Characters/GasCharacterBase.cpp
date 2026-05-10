@@ -11,6 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Furi/GameplayAbilitySystem/AttributeSets/BasicAttributeSet.h"
 #include "Furi/utils/FuriTypes.h"
+#include "Furi/utils/FuriDebugComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -23,6 +24,9 @@ AGasCharacterBase::AGasCharacterBase()
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(AscReplicationMode);
+
+	// --- Debug Component 초기화 ---
+	DebugComponent = CreateDefaultSubobject<UFuriDebugComponent>(TEXT("DebugComponent"));
 
 	// --- 캐릭터 이동 및 물리 설정 ---
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
